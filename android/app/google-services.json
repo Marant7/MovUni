@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "347404009464",
+    "project_id": "movuni-613a9",
+    "storage_bucket": "movuni-613a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:347404009464:android:79dd4c35c554ba5bd7a00d",
+        "android_client_info": {
+          "package_name": "com.alvaro.movuni"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIQ6PE0EK_XBrIfekZlVVGhhCrtgGIX2I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:347404009464:android:c099a20526e9a2ccd7a00d",
+        "android_client_info": {
+          "package_name": "com.example.movuni"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIQ6PE0EK_XBrIfekZlVVGhhCrtgGIX2I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
