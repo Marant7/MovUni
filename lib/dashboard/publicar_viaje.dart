@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- Importa esto para inputFormatters
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PublicarViajePage extends StatefulWidget {
   const PublicarViajePage({Key? key}) : super(key: key);
@@ -35,6 +38,97 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
         _paradaController.clear();
       });
     }
+  }
+
+  Future<void> _guardarViaje() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        _showCenterMessage('Debes iniciar sesión primero');
+        return;
+      }
+
+      List<Map<String, dynamic>> paradasGuardadas = paradas.map((p) => {
+        "nombre": p,
+      }).toList();
+
+      Map<String, dynamic> viaje = {
+        "origen": {
+          "nombre": _origenController.text,
+        },
+        "destino": {
+          "nombre": _destinoController.text,
+        },
+        "paradas": paradasGuardadas,
+        "fecha": _fechaController.text,
+        "hora": _horaController.text,
+        "asientos": int.tryParse(_asientosController.text) ?? 1,
+        "precio": double.tryParse(_precioController.text) ?? 5.0,
+        "metodosPago": metodosPago.entries.where((e)=>e.value).map((e)=>e.key).toList(),
+        "descripcion": _descripcionController.text,
+        "conductorId": user.uid,
+        "timestamp": FieldValue.serverTimestamp(),
+      };
+
+      await FirebaseFirestore.instance.collection('viajes').add(viaje);
+
+      _showCenterMessage('¡Se publicó su viaje!', onClose: () {
+        Navigator.of(context).pop(); // Regresa al inicio (ajusta según tu navegación)
+      });
+    } catch (e) {
+      _showCenterMessage('Error: $e');
+    }
+  }
+
+  // Mensaje centrado personalizado (usando Dialog)
+  void _showCenterMessage(String mensaje, {VoidCallback? onClose}) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Text(
+          mensaje,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (onClose != null) onClose();
+            },
+            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  // Diálogo de confirmación antes de publicar
+  void _confirmarPublicacion() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Seguro de publicar su viaje?', textAlign: TextAlign.center),
+        content: const Text('¿Desea continuar con la publicación?', textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(), // NO: cerrar y seguir en formulario
+            child: const Text('No', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+            onPressed: () {
+              Navigator.of(context).pop(); // Cierra el diálogo
+              _guardarViaje(); // SÍ: Publica viaje
+            },
+            child: const Text('Sí'),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
   }
 
   @override
@@ -227,6 +321,9 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               TextField(
                 controller: _asientosController,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly, // SOLO NÚMEROS
+                ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.event_seat, color: Colors.indigo),
                   hintText: '1',
@@ -241,7 +338,10 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               const SizedBox(height: 7),
               TextField(
                 controller: _precioController,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), // NÚMEROS Y UN PUNTO
+                ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.attach_money, color: Colors.indigo),
                   hintText: '5',
@@ -327,11 +427,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('¡Viaje publicado (demo)!'))
-                    );
-                  },
+                  onPressed: _confirmarPublicacion, // <-- CAMBIA AQUÍ
                   child: const Text('Publicar Viaje', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                 ),
               ),
