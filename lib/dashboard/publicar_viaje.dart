@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // <-- Importa esto para inputFormatters
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../map_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
+// Coordenadas de la Universidad Privada de Tacna
+final LatLng universidadTacna = LatLng(-18.0048523, -70.2261172);
+
+LatLng? origenLatLng = universidadTacna;
+LatLng? destinoLatLng;
 
 class PublicarViajePage extends StatefulWidget {
   const PublicarViajePage({Key? key}) : super(key: key);
@@ -20,7 +28,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
   final TextEditingController _precioController = TextEditingController(text: '5');
   final TextEditingController _descripcionController = TextEditingController();
 
-  List<String> paradas = [];
+  List<Map<String, dynamic>> paradas = [];
   List<String> rutasPopulares = [
     'Universidad UPT → Centro de Tacna',
   ];
@@ -31,14 +39,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
     'Plin (999123456)': false,
   };
 
-  void _agregarParada() {
-    if (_paradaController.text.trim().isNotEmpty) {
-      setState(() {
-        paradas.add(_paradaController.text.trim());
-        _paradaController.clear();
-      });
-    }
-  }
+
 
   Future<void> _guardarViaje() async {
     try {
@@ -48,18 +49,18 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
         return;
       }
 
-      List<Map<String, dynamic>> paradasGuardadas = paradas.map((p) => {
-        "nombre": p,
-      }).toList();
-
       Map<String, dynamic> viaje = {
         "origen": {
           "nombre": _origenController.text,
+          "lat": origenLatLng?.latitude,
+          "lng": origenLatLng?.longitude,
         },
         "destino": {
           "nombre": _destinoController.text,
+          "lat": destinoLatLng?.latitude,
+          "lng": destinoLatLng?.longitude,
         },
-        "paradas": paradasGuardadas,
+        "paradas": paradas, // Ya contiene nombre, lat, lng
         "fecha": _fechaController.text,
         "hora": _horaController.text,
         "asientos": int.tryParse(_asientosController.text) ?? 1,
@@ -73,7 +74,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
       await FirebaseFirestore.instance.collection('viajes').add(viaje);
 
       _showCenterMessage('¡Se publicó su viaje!', onClose: () {
-        Navigator.of(context).pop(); // Regresa al inicio (ajusta según tu navegación)
+        Navigator.of(context).pop();
       });
     } catch (e) {
       _showCenterMessage('Error: $e');
@@ -201,9 +202,30 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               const SizedBox(height: 7),
               TextField(
                 controller: _origenController,
+                readOnly: true,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.location_on, color: Colors.green),
-                  hintText: 'Punto de partida',
+                  hintText: 'Universidad Privada de Tacna',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.map, color: Colors.indigo),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MapPickerPage(
+                            initialLocation: universidadTacna,
+                            title: 'Selecciona el origen',
+                          ),
+                        ),
+                      );
+                      if (result != null && result is LatLng) {
+                        setState(() {
+                          origenLatLng = result;
+                          _origenController.text = 'Lat: ${result.latitude}, Lng: ${result.longitude}';
+                        });
+                      }
+                    },
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFF6F8FC),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -215,9 +237,30 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               const SizedBox(height: 7),
               TextField(
                 controller: _destinoController,
+                readOnly: true,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                  hintText: 'Punto de llegada',
+                  hintText: 'Selecciona destino',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.map, color: Colors.indigo),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MapPickerPage(
+                            initialLocation: universidadTacna,
+                            title: 'Selecciona el destino',
+                          ),
+                        ),
+                      );
+                      if (result != null && result is LatLng) {
+                        setState(() {
+                          destinoLatLng = result;
+                          _destinoController.text = 'Lat: ${result.latitude}, Lng: ${result.longitude}';
+                        });
+                      }
+                    },
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFF6F8FC),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
@@ -232,28 +275,67 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                   Expanded(
                     child: TextField(
                       controller: _paradaController,
+                      readOnly: true,
                       decoration: InputDecoration(
-                        hintText: 'Agregar parada',
+                        hintText: 'Selecciona parada',
                         filled: true,
                         fillColor: const Color(0xFFF6F8FC),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.map, color: Colors.indigo),
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MapPickerPage(
+                            initialLocation: universidadTacna,
+                            title: 'Selecciona parada',
+                          ),
+                        ),
+                      );
+                      if (result != null && result is LatLng) {
+                        setState(() {
+                          _paradaController.text = 'Lat: ${result.latitude}, Lng: ${result.longitude}';
+                        });
+                      }
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(Icons.add, color: Colors.indigo),
-                    onPressed: _agregarParada,
+                    onPressed: () {
+                      if (_paradaController.text.trim().isNotEmpty) {
+                        final texto = _paradaController.text.trim();
+                        double? lat;
+                        double? lng;
+                        final latMatch = RegExp(r'Lat:\s*(-?\d+\.\d+)').firstMatch(texto);
+                        final lngMatch = RegExp(r'Lng:\s*(-?\d+\.\d+)').firstMatch(texto);
+                        if (latMatch != null) lat = double.tryParse(latMatch.group(1)!);
+                        if (lngMatch != null) lng = double.tryParse(lngMatch.group(1)!);
+
+                        setState(() {
+                          paradas.add({
+                            "nombre": texto,
+                            "lat": lat,
+                            "lng": lng,
+                          });
+                          _paradaController.clear();
+                        });
+                      }
+                    },
                   ),
                 ],
               ),
+
               if (paradas.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Wrap(
                     spacing: 7,
                     children: paradas.map((p) => Chip(
-                      label: Text(p),
+                      label: Text('${p["nombre"]}'),
                       deleteIcon: const Icon(Icons.close, size: 16),
                       onDeleted: () {
                         setState(() {

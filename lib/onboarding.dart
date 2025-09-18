@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
+import 'package:flutter/services.dart';
 
 class OnboardingPage extends StatelessWidget {
   const OnboardingPage({Key? key}) : super(key: key);
@@ -39,6 +40,9 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Oculta barra de navegación y barra de estado
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
