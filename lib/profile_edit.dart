@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProfileEditPage extends StatefulWidget {
   final String userType; // 'Estudiante' o 'Conductor'
@@ -13,6 +14,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Obtiene el correo del usuario autenticado en Firebase
+    final user = FirebaseAuth.instance.currentUser;
+    _emailController.text = user?.email ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,12 +117,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _emailController,
+                  readOnly: true, // Solo lectura
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
                     hintText: 'ejemplo@virtual.upt.pe',
                     filled: true,
-                    fillColor: Colors.grey.shade100,
+                    fillColor: Colors.grey.shade200, // Color diferente para indicar solo lectura
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                       borderSide: BorderSide.none,
