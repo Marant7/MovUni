@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../login.dart'; // Ajusta la ruta si es necesario
+import '../profile_edit.dart';
 
 class ConductorDashboard extends StatelessWidget {
   const ConductorDashboard({Key? key}) : super(key: key);
@@ -26,10 +27,27 @@ class ConductorDashboard extends StatelessWidget {
             ),
           ],
         ),
-        body: const Center(
-          child: Text(
-            '¡Bienvenido Conductor!',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                '¡Bienvenido Conductor!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileEditPage(userType: 'Conductor'),
+                    ),
+                  );
+                },
+                child: const Text('Editar Perfil'),
+              ),
+            ],
           ),
         ),
       );

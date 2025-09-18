@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../login.dart'; // Ajusta la ruta si es necesario
+import '../profile_edit.dart';
 
 class EstudianteDashboard extends StatelessWidget {
   const EstudianteDashboard({Key? key}) : super(key: key);
@@ -9,27 +8,28 @@ class EstudianteDashboard extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: const Text('Estudiante'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Cerrar sesión',
-              onPressed: () async {
-                await FirebaseAuth.instance.signOut();
-                if (context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                    (route) => false,
-                  );
-                }
-              },
-            ),
-          ],
         ),
-        body: const Center(
-          child: Text(
-            '¡Bienvenido Estudiante!',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                '¡Bienvenido Estudiante!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileEditPage(userType: 'Estudiante'),
+                    ),
+                  );
+                },
+                child: const Text('Editar Perfil'),
+              ),
+            ],
           ),
         ),
       );
