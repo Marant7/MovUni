@@ -1,45 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-// Vistas de dashboard para cada tipo de usuario
-class AdminDashboard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Administrador')),
-        body: const Center(
-          child: Text(
-            '¡Bienvenido Administrador!',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
-}
-
-class EstudianteDashboard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Estudiante')),
-        body: const Center(
-          child: Text(
-            '¡Bienvenido Estudiante!',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
-}
-
-class ConductorDashboard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Conductor')),
-        body: const Center(
-          child: Text(
-            '¡Bienvenido Conductor!',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-        ),
-      );
-}
+import 'dashboard/admin_dashboard.dart';
+import 'dashboard/estudiante_dashboard.dart';
+import 'dashboard/conductor_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
