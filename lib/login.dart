@@ -1,4 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+// Vistas de dashboard para cada tipo de usuario
+class AdminDashboard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Administrador')),
+        body: const Center(
+          child: Text(
+            '¡Bienvenido Administrador!',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+}
+
+class EstudianteDashboard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Estudiante')),
+        body: const Center(
+          child: Text(
+            '¡Bienvenido Estudiante!',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+}
+
+class ConductorDashboard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Conductor')),
+        body: const Center(
+          child: Text(
+            '¡Bienvenido Conductor!',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+}
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -15,27 +56,52 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
   String? _errorMessage;
 
-  void _login() {
+  Future<void> _login() async {
     setState(() {
       _errorMessage = null; // Clear previous errors
     });
 
-    final String email = _emailController.text;
-    final String password = _passwordController.text;
+    final String email = _emailController.text.trim();
+    final String password = _passwordController.text.trim();
 
-    // Simulate authentication
-    if (email == 'admin@virtual.upt.pe' && password == '123456') {
-      // In a real app, you would navigate to the home screen
-      print('Login successful!');
-      // For this example, we'll just show a success message or navigate
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inicio de sesión exitoso!')),
-      );
-    } else {
+    if (email.isEmpty || password.isEmpty) {
       setState(() {
-        _errorMessage = 'Correo o contraseña incorrectos.';
+        _errorMessage = 'Correo y contraseña son obligatorios.';
       });
-      print('Login failed: Invalid credentials');
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Redirige según el tipo de usuario
+      if (email == 'admin@virtual.upt.pe') {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => AdminDashboard()));
+      } else if (email == 'estudiante@virtual.upt.pe') {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => EstudianteDashboard()));
+      } else if (email == 'conductor@virtual.upt.pe') {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (_) => ConductorDashboard()));
+      } else {
+        setState(() {
+          _errorMessage = 'Usuario no reconocido.';
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      setState(() {
+        _errorMessage = 'Credenciales incorrectas: ${e.message}';
+      });
     }
   }
 
