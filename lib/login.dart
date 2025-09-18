@@ -95,12 +95,26 @@ class _LoginPageState extends State<LoginPage> {
                 builder: (_) => ConductorDashboard()));
       } else {
         setState(() {
-          _errorMessage = 'Usuario no reconocido.';
+          _errorMessage = 'Credenciales incorrectas o cuenta inválida.';
         });
       }
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        setState(() {
+          _errorMessage = 'Usuario no encontrado.';
+        });
+      } else if (e.code == 'wrong-password') {
+        setState(() {
+          _errorMessage = 'Contraseña incorrecta.';
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Correo o contraseña incorrectos. Por favor verifica tus datos.';
+        });
+      }
+    } catch (e) {
       setState(() {
-        _errorMessage = 'Credenciales incorrectas: ${e.message}';
+        _errorMessage = 'Error inesperado: $e';
       });
     }
   }
