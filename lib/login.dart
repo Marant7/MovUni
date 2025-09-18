@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dashboard/admin_dashboard.dart';
 import 'dashboard/estudiante_dashboard.dart';
 import 'dashboard/conductor_dashboard.dart';
+import 'screens/register_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
-
+  
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -16,9 +18,9 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController(text: '');
   bool _isPasswordVisible = false;
   String? _errorMessage;
-
   int _failedAttempts = 0;
   bool _isBlocked = false;
+  bool _isLoading = false;
 
   Future<void> _login() async {
     if (_isBlocked) {
@@ -29,7 +31,8 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() {
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
+      _isLoading = true;
     });
 
     final String email = _emailController.text.trim();
@@ -38,63 +41,147 @@ class _LoginPageState extends State<LoginPage> {
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         _errorMessage = 'Correo y contraseña son obligatorios.';
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Validar dominio antes de intentar autenticar
+    if (!email.endsWith('@virtual.upt.pe')) {
+      setState(() {
+        _errorMessage = 'Solo se permiten correos con dominio @virtual.upt.pe';
+        _isLoading = false;
       });
       return;
     }
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // Autenticar con Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       _failedAttempts = 0; // Reinicia el contador si el login es exitoso
 
-      // Redirige según el tipo de usuario
-      if (email == 'admin@virtual.upt.pe') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AdminDashboard()));
-      } else if (email == 'estudiante@virtual.upt.pe') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => EstudianteDashboard()));
-      } else if (email == 'conductor@virtual.upt.pe') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ConductorDashboard()));
-      } else {
-        setState(() {
-          _errorMessage = 'Credenciales incorrectas o cuenta inválida.';
+      // Verificar si existe en Firestore o crear perfil básico
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .get();
+
+      String userRole = 'estudiante'; // Rol por defecto
+
+      if (!userDoc.exists) {
+        // Si no existe en Firestore, crear un perfil básico
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .set({
+          'firstName': email.split('@')[0], // Usar parte del email como nombre temporal
+          'lastName': '',
+          'email': email,
+          'role': userRole,
+          'university': 'Universidad Privada de Tacna',
+          'isDriver': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'rating': 5.0,
+          'totalTrips': 0,
+          'status': 'active',
+          'profileComplete': false, // Marcar que el perfil necesita completarse
         });
+      } else {
+        // Si existe, obtener el rol del documento
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userRole = userData['role'] ?? 'estudiante';
       }
+
+      // Verificar correos especiales para admin
+      if (email == 'admin@virtual.upt.pe') {
+        userRole = 'admin';
+        // Actualizar el rol en Firestore si no es admin
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .update({'role': 'admin'});
+      }
+
+      // Redirigir según el rol del usuario
+      Widget destinationScreen;
+      switch (userRole.toLowerCase()) {
+        case 'admin':
+          destinationScreen = AdminDashboard();
+          break;
+        case 'estudiante':
+          destinationScreen = EstudianteDashboard();
+          break;
+        case 'conductor':
+          destinationScreen = ConductorDashboard();
+          break;
+        default:
+          destinationScreen = EstudianteDashboard(); // Dashboard por defecto
+      }
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => destinationScreen),
+        );
+      }
+
     } on FirebaseAuthException catch (e) {
       _failedAttempts++;
       if (_failedAttempts >= 5) {
         setState(() {
           _isBlocked = true;
           _errorMessage = 'Demasiados intentos fallidos. Espera 10 segundos para volver a intentar.';
+          _isLoading = false;
         });
         Future.delayed(const Duration(seconds: 10), () {
-          setState(() {
-            _isBlocked = false;
-            _failedAttempts = 0;
-            _errorMessage = null;
-          });
+          if (mounted) {
+            setState(() {
+              _isBlocked = false;
+              _failedAttempts = 0;
+              _errorMessage = null;
+            });
+          }
         });
         return;
       }
 
-      if (e.code == 'user-not-found') {
-        setState(() {
-          _errorMessage = 'Usuario no encontrado.';
-        });
-      } else if (e.code == 'wrong-password') {
-        setState(() {
-          _errorMessage = 'Contraseña incorrecta.';
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Correo o contraseña incorrectos. Por favor verifica tus datos.';
-        });
+      String errorMessage;
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Usuario no encontrado. ¿Ya tienes una cuenta creada?';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Contraseña incorrecta.';
+          break;
+        case 'invalid-email':
+          errorMessage = 'El formato del correo electrónico no es válido.';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Esta cuenta ha sido deshabilitada.';
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Demasiados intentos de inicio de sesión. Intenta más tarde.';
+          break;
+        case 'invalid-credential':
+          errorMessage = 'Credenciales inválidas. Verifica tu correo y contraseña.';
+          break;
+        default:
+          errorMessage = 'Correo o contraseña incorrectos. Por favor verifica tus datos.';
       }
+
+      setState(() {
+        _errorMessage = errorMessage;
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Error inesperado: $e';
+        _isLoading = false;
       });
     }
   }
@@ -116,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                   color: Colors.grey.withOpacity(0.1),
                   spreadRadius: 5,
                   blurRadius: 7,
-                  offset: const Offset(0, 3), // changes position of shadow
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -128,7 +215,7 @@ class _LoginPageState extends State<LoginPage> {
                 Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50, // Light blue background for icon
+                    color: Colors.blue.shade50,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -172,7 +259,7 @@ class _LoginPageState extends State<LoginPage> {
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.email_outlined, color: Colors.grey),
-                    hintText: 'admin@virtual.upt.pe',
+                    hintText: 'tu-email@virtual.upt.pe',
                     filled: true,
                     fillColor: Colors.grey.shade100,
                     border: OutlineInputBorder(
@@ -253,23 +340,27 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: _login,
+                  onPressed: _isLoading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.indigo.shade900, // Dark blue button
+                    backgroundColor: Colors.indigo.shade900,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                    minimumSize: const Size(double.infinity, 50), 
+                    minimumSize: const Size(double.infinity, 50),
                   ),
-                  child: const Text(
-                    'Iniciar Sesión',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        )
+                      : const Text(
+                          'Iniciar Sesión',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 Row(
@@ -284,7 +375,10 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        print('Register pressed');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                        );
                       },
                       child: const Text(
                         'Regístrate aquí',
@@ -301,14 +395,14 @@ class _LoginPageState extends State<LoginPage> {
                 Container(
                   padding: const EdgeInsets.all(15.0),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50, 
+                    color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Credenciales de prueba:',
+                        'Información:',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -317,14 +411,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        'Email: admin@virtual.upt.pe',
+                        'Cualquier correo @virtual.upt.pe puede acceder al sistema',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.blue.shade700,
                         ),
                       ),
                       Text(
-                        'Contraseña: 123456',
+                        'Si no tienes perfil, se creará uno automáticamente',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.blue.shade700,
