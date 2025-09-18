@@ -43,30 +43,164 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     _loadUserData();
   }
 
-  // Diálogo para confirmar actualización
+  // Diálogo para confirmar actualización (mejor diseño, fondo blanco y azul)
   void _confirmarActualizacion() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('¿Está seguro que desea actualizar su perfil?', textAlign: TextAlign.center),
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.indigo[700], size: 28),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Confirmar actualización',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo[900],
+                  fontSize: 19
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.indigo.shade50],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: EdgeInsets.all(8),
+          child: Text(
+            '¿Está seguro que desea actualizar su perfil?',
+            style: TextStyle(fontSize: 16, color: Colors.black87),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
         actions: [
-          TextButton(
+          TextButton.icon(
+            icon: Icon(Icons.close, color: Colors.red),
+            label: Text('No', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
             onPressed: () {
               Navigator.of(context).pop();
               setState(() { _editMode = false; });
             },
-            child: const Text('No', style: TextStyle(color: Colors.red)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+          ElevatedButton.icon(
+            icon: Icon(Icons.check, color: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.indigo[700],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            ),
+            label: Text('Sí', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             onPressed: () {
               Navigator.of(context).pop();
               _guardarPerfil();
             },
-            child: const Text('Sí'),
           ),
         ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
+
+  // Mensaje de éxito con diseño fondo blanco y azul
+  void _mensajeExito(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(vertical: 28, horizontal: 18),
+        content: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.indigo.shade50],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.green[600], size: 48),
+              SizedBox(height: 10),
+              Text(
+                mensaje,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 19,
+                  color: Colors.indigo[900],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('OK', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo[700], fontSize: 16)),
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() { _editMode = false; });
+            },
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
+
+  // Mensaje de error con diseño fondo blanco y azul
+  void _mensajeError(String mensaje) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        contentPadding: EdgeInsets.symmetric(vertical: 28, horizontal: 18),
+        content: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.white, Colors.blue.shade50],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red[700], size: 48),
+              SizedBox(height: 10),
+              Text(
+                mensaje,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                  color: Colors.red[900],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cerrar', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red[700], fontSize: 16)),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
     );
   }
@@ -79,24 +213,21 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     // Validación
     if (nombres.isEmpty || apellidos.isEmpty || telefono.isEmpty) {
-      setState(() { _errorMessage = 'Todos los campos son obligatorios.'; });
+      _mensajeError('Todos los campos son obligatorios.');
       return;
     }
-    // Solo letras en nombres y apellidos (puedes ajustar el regex para admitir tildes y ñ)
     if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$").hasMatch(nombres)) {
-      setState(() { _errorMessage = 'Nombres solo debe contener letras.'; });
+      _mensajeError('Nombres solo debe contener letras.');
       return;
     }
     if (!RegExp(r"^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$").hasMatch(apellidos)) {
-      setState(() { _errorMessage = 'Apellidos solo debe contener letras.'; });
+      _mensajeError('Apellidos solo debe contener letras.');
       return;
     }
-    // Solo números y longitud 9 en teléfono
     if (!RegExp(r'^\d{9}$').hasMatch(telefono)) {
-      setState(() { _errorMessage = 'El teléfono debe tener 9 dígitos y solo números.'; });
+      _mensajeError('El teléfono debe tener 9 dígitos y solo números.');
       return;
     }
-    setState(() { _errorMessage = null; });
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -109,22 +240,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       'tipo': widget.userType,
     }, SetOptions(merge: true));
 
-    // Mensaje de éxito
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: const Text('Perfil actualizado correctamente', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              setState(() { _editMode = false; });
-            },
-            child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    _mensajeExito('¡Perfil actualizado correctamente!');
   }
 
   // Card de perfil (vista no editable)
@@ -333,7 +449,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     child: TextField(
                       controller: _nombreController,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ ]")), // Solo letras y espacios
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ ]")),
                       ],
                       decoration: InputDecoration(
                         labelText: 'Nombres',
@@ -348,7 +464,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     child: TextField(
                       controller: _apellidosController,
                       inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ ]")), // Solo letras y espacios
+                        FilteringTextInputFormatter.allow(RegExp(r"[a-zA-ZáéíóúÁÉÍÓÚñÑ ]")),
                       ],
                       decoration: InputDecoration(
                         labelText: 'Apellidos',
@@ -388,15 +504,6 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
                 ),
               ),
-              const SizedBox(height: 12),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 10.0),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 14),
-                  ),
-                ),
               const SizedBox(height: 24),
               Row(
                 children: [
