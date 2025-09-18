@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:movuni/login.dart'; // ¡Importa tu archivo login.dart aquí!
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login.dart';
+import 'onboarding.dart';
 
 void main() {
   runApp(const MainApp());
@@ -8,12 +10,30 @@ void main() {
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
+  Future<bool> hasSeenOnboarding() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('onboarding_done') ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      // Quita el Scaffold y el Center con el Text('Hello World!')
-      // y en su lugar, establece LoginPage como la pantalla de inicio.
-      home: LoginPage(), // Aquí es donde llamas a tu LoginPage
+    return MaterialApp(
+      home: FutureBuilder<bool>(
+        future: hasSeenOnboarding(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          } else {
+            if (snapshot.data == true) {
+              return const LoginPage();
+            } else {
+              return const OnboardingPage();
+            }
+          }
+        },
+      ),
     );
   }
 }
