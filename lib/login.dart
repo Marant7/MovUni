@@ -49,14 +49,22 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController =
-      TextEditingController(text: '');
-  final TextEditingController _passwordController =
-      TextEditingController(text: '');
+  final TextEditingController _emailController = TextEditingController(text: '');
+  final TextEditingController _passwordController = TextEditingController(text: '');
   bool _isPasswordVisible = false;
   String? _errorMessage;
 
+  int _failedAttempts = 0;
+  bool _isBlocked = false;
+
   Future<void> _login() async {
+    if (_isBlocked) {
+      setState(() {
+        _errorMessage = 'Demasiados intentos fallidos. Espera 10 segundos para volver a intentar.';
+      });
+      return;
+    }
+
     setState(() {
       _errorMessage = null; // Clear previous errors
     });
@@ -77,28 +85,37 @@ class _LoginPageState extends State<LoginPage> {
         password: password,
       );
 
+      _failedAttempts = 0; // Reinicia el contador si el login es exitoso
+
       // Redirige según el tipo de usuario
       if (email == 'admin@virtual.upt.pe') {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => AdminDashboard()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => AdminDashboard()));
       } else if (email == 'estudiante@virtual.upt.pe') {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => EstudianteDashboard()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => EstudianteDashboard()));
       } else if (email == 'conductor@virtual.upt.pe') {
-        Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (_) => ConductorDashboard()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ConductorDashboard()));
       } else {
         setState(() {
           _errorMessage = 'Credenciales incorrectas o cuenta inválida.';
         });
       }
     } on FirebaseAuthException catch (e) {
+      _failedAttempts++;
+      if (_failedAttempts >= 5) {
+        setState(() {
+          _isBlocked = true;
+          _errorMessage = 'Demasiados intentos fallidos. Espera 10 segundos para volver a intentar.';
+        });
+        Future.delayed(const Duration(seconds: 10), () {
+          setState(() {
+            _isBlocked = false;
+            _failedAttempts = 0;
+            _errorMessage = null;
+          });
+        });
+        return;
+      }
+
       if (e.code == 'user-not-found') {
         setState(() {
           _errorMessage = 'Usuario no encontrado.';
