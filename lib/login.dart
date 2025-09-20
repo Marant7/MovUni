@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dashboard/admin_dashboard.dart';
-import 'dashboard/estudiante_dashboard.dart';
-import 'dashboard/conductor_dashboard.dart';
 import 'screens/register_screen.dart';
+import 'screens/user_role_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -114,13 +113,12 @@ class _LoginPageState extends State<LoginPage> {
           destinationScreen = AdminDashboard();
           break;
         case 'estudiante':
-          destinationScreen = EstudianteDashboard();
-          break;
         case 'conductor':
-          destinationScreen = ConductorDashboard();
+          // Para estudiantes y conductores, redirigir a la pantalla de selección de rol
+          destinationScreen = UserRoleScreen();
           break;
         default:
-          destinationScreen = EstudianteDashboard(); // Dashboard por defecto
+          destinationScreen = UserRoleScreen(); // Pantalla de selección por defecto
       }
 
       if (mounted) {
