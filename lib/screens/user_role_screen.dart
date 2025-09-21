@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:movuni/services/session_service.dart';
-import 'package:movuni/dashboard/estudiante_dashboard.dart';
+import 'package:movuni/dashboard/pasajero_dashboard.dart';
 import 'package:movuni/dashboard/conductor_dashboard.dart';
 
 class UserRoleScreen extends StatefulWidget {
