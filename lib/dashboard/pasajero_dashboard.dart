@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:movuni/services/auth_service.dart';
 import 'package:movuni/services/session_service.dart';
 import 'package:movuni/login.dart';
+import 'package:movuni/screens/active_trips_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class PassengerScreen extends StatefulWidget {
   const PassengerScreen({Key? key}) : super(key: key);
@@ -116,7 +119,48 @@ class _PassengerScreenState extends State<PassengerScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('solicitudes_viajes')
+                    .where('passenger_id', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                    .where('status', isEqualTo: 'aceptada')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CircularProgressIndicator();
+                  }
+                  
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const SizedBox(); // No mostrar nada si no hay viajes aceptados
+                  }
+
+                  final acceptedTrips = snapshot.data!.docs;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Tus Viajes Aceptados',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...acceptedTrips.map((trip) => Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          title: Text('${trip['origen']['nombre']} → ${trip['destino']['nombre']}'),
+                          subtitle: Text('Hora: ${trip['hora']} • Precio: S/${trip['precio']}'),
+                          leading: const Icon(Icons.check_circle, color: Colors.green),
+                        ),
+                      )).toList(),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
               // Buscador de viajes
               Card(
                 elevation: 3,
@@ -193,7 +237,10 @@ class _PassengerScreenState extends State<PassengerScreen> {
                       icon: Icons.directions_bus,
                       color: Colors.green,
                       onTap: () {
-                        // Navegar a viajes activos
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const ActiveTripsScreen()),
+                        );
                       },
                     ),
                     _PassengerOptionCard(
