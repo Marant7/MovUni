@@ -63,5 +63,12 @@ class AuthService {
     }
   }
 
-  // Otros métodos de autenticación (login, logout, etc.)
+  // Método de cierre de sesión
+  Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      throw Exception('Error al cerrar sesión: $e');
+    }
+  }
 }
