@@ -7,40 +7,67 @@ class TripDetailScreen extends StatelessWidget {
 
   const TripDetailScreen({Key? key, required this.trip}) : super(key: key);
 
-  void _solicitarUnirseAlViaje(BuildContext context) async {
+  void _reservarViaje(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    try {
-      await FirebaseFirestore.instance.collection('solicitudes_viajes').add({
-        'trip_id': trip.id,
-        'passenger_id': user.uid,
-        'conductor_id': trip['conductorId'],
-        'status': 'pendiente', 
-        'fecha_solicitud': FieldValue.serverTimestamp(),
-        'origen': trip['origen'],
-        'destino': trip['destino'],
-        'hora': trip['hora'],
-        'fecha_viaje': trip['fecha'],
-        'precio': trip['precio'],
-        'descripcion': trip['descripcion'],
-        'metodosPago': trip['metodosPago'],
-        'paradas': trip['paradas'],
-      });
+    final tripRef = FirebaseFirestore.instance.collection('viajes').doc(trip.id);
+    final tripSnapshot = await tripRef.get();
+    final asientosDisponibles = tripSnapshot['asientos'] ?? 0;
 
+    if (asientosDisponibles > 0) {
+      try {
+        // Crear la solicitud aceptada
+        await FirebaseFirestore.instance.collection('solicitudes_viajes').add({
+          'trip_id': trip.id,
+          'passenger_id': user.uid,
+          'conductor_id': trip['conductorId'],
+          'status': 'aceptada',
+          'fecha_solicitud': FieldValue.serverTimestamp(),
+          'origen': trip['origen'],
+          'destino': trip['destino'],
+          'hora': trip['hora'],
+          'fecha_viaje': trip['fecha'],
+          'precio': trip['precio'],
+          'descripcion': trip['descripcion'],
+          'metodosPago': trip['metodosPago'],
+          'paradas': trip['paradas'],
+        });
+
+        // Actualizar asientos disponibles
+        await tripRef.update({'asientos': asientosDisponibles - 1});
+
+        // Notificar al conductor
+        await FirebaseFirestore.instance.collection('notificaciones').add({
+          'usuario_id': trip['conductorId'],
+          'titulo': 'Nueva reserva',
+          'mensaje': 'Un estudiante ha reservado un asiento en tu viaje.',
+          'tipo': 'reserva_viaje',
+          'viaje_id': trip.id,
+          'leido': false,
+          'fecha': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Reserva confirmada! Tu lugar está asegurado.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al reservar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Solicitud enviada correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al enviar solicitud: $e'),
-          backgroundColor: Colors.red,
+          content: Text('No hay cupo disponible en este viaje.'),
+          backgroundColor: Colors.orange,
         ),
       );
     }
@@ -133,14 +160,14 @@ class TripDetailScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _solicitarUnirseAlViaje(context),
+                onPressed: () => _reservarViaje(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green[700],
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 child: const Text(
-                  'Solicitar Unirse al Viaje',
+                  'Reservar',
                   style: TextStyle(fontSize: 16),
                 ),
               ),
