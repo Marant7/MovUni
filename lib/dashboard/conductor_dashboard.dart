@@ -7,6 +7,8 @@ import '../login.dart';
 import '../profile_edit.dart';
 import 'publicar_viaje.dart';
 import 'historial_viajes.dart';
+import '../screens/mis_viajes_screen.dart';
+import 'estudiante_dashboard.dart';
 
 class ConductorDashboard extends StatefulWidget {
   const ConductorDashboard({Key? key}) : super(key: key);
@@ -27,10 +29,28 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
   }
 
   void _loadUserData() async {
-    // Aquí deberías obtener los datos del usuario desde tu servicio
-    setState(() {
-      _userName = "Nombre del Conductor";
-    });
+    if (user != null) {
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user!.uid)
+            .get();
+        
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          setState(() {
+            _userName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+            if (_userName!.isEmpty) {
+              _userName = userData['email']?.split('@')[0] ?? 'Conductor';
+            }
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _userName = 'Conductor';
+        });
+      }
+    }
   }
 
   void _abrirPublicarViaje(BuildContext context) {
@@ -56,6 +76,35 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
     );
   }
 
+  void _verMisViajes(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MisViajesScreen()),
+    );
+  }
+
+  void _cambiarAPasajero(BuildContext context) async {
+    try {
+      final sessionService = SessionService();
+      
+      
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const EstudianteDashboard()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cambiar a pasajero: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _logout() async {
     final sessionService = SessionService();
     await sessionService.clearUserRole();
@@ -79,10 +128,8 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
         'fecha_respuesta': FieldValue.serverTimestamp(),
       });
 
-      // Cerrar el modal
       Navigator.pop(context);
 
-      // Mostrar mensaje de éxito
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Solicitud $status correctamente'),
@@ -113,9 +160,11 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
           future: FirebaseFirestore.instance.collection('users').doc(passengerId).get(),
           builder: (context, snapshot) {
             String passengerName = 'Pasajero';
+            String passengerPhone = '';
             if (snapshot.hasData && snapshot.data!.exists) {
-              final data = snapshot.data!;
-              passengerName = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}';
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              passengerName = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}'.trim();
+              passengerPhone = data['phone'] ?? '';
             }
 
             return AlertDialog(
@@ -125,6 +174,8 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Pasajero: $passengerName'),
+                  if (passengerPhone.isNotEmpty)
+                    Text('Teléfono: $passengerPhone'),
                   const SizedBox(height: 8),
                   Text('Ruta: $origen → $destino'),
                   const SizedBox(height: 8),
@@ -144,7 +195,7 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                 ElevatedButton(
                   onPressed: () => _manejarSolicitud(request.id, 'aceptada', context),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  child: const Text('Aceptar'),
+                  child: const Text('Aceptar', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -188,18 +239,19 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.search),
-                title: const Text('Buscar Viajes'),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.add_circle_outline),
                 title: const Text('Publicar Viaje'),
                 onTap: () {
                   Navigator.pop(context);
                   _abrirPublicarViaje(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list_alt),
+                title: const Text('Mis Viajes'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _verMisViajes(context);
                 },
               ),
               ListTile(
@@ -216,6 +268,15 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                 onTap: () {
                   Navigator.pop(context);
                   _editarPerfil(context);
+                },
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.switch_account, color: Colors.blue),
+                title: const Text('Cambiar a Pasajero'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _cambiarAPasajero(context);
                 },
               ),
               const Spacer(),
@@ -267,7 +328,7 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hola, $_userName',
+                              'Hola, ${_userName ?? "Conductor"}',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -308,13 +369,33 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Solicitudes Pendientes',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              'Solicitudes Pendientes',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${pendingRequests.length}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 10),
                         ListView.builder(
@@ -326,34 +407,37 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                             final origen = request['origen']['nombre'] ?? 'Origen';
                             final destino = request['destino']['nombre'] ?? 'Destino';
                             final hora = request['hora'] ?? '';
-                            final passengerId = request['passenger_id'];
 
-                            return FutureBuilder<DocumentSnapshot>(
-                              future: FirebaseFirestore.instance.collection('users').doc(passengerId).get(),
-                              builder: (context, snapshot) {
-                                String passengerName = 'Pasajero';
-                                if (snapshot.hasData && snapshot.data!.exists) {
-                                  final data = snapshot.data!;
-                                  passengerName = '${data['firstName'] ?? ''} ${data['lastName'] ?? ''}';
-                                }
-
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  child: ListTile(
-                                    title: Text('$origen → $destino'),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Pasajero: $passengerName'),
-                                        Text('Hora: $hora'),
-                                      ],
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: ListTile(
+                                title: Text('$origen → $destino'),
+                                subtitle: Text('Hora: $hora'),
+                                leading: const Icon(Icons.person, color: Colors.orange),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'NUEVO',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.orange,
+                                        ),
+                                      ),
                                     ),
-                                    leading: const Icon(Icons.person, color: Colors.blue),
-                                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                                    onTap: () => _mostrarModalSolicitud(context, request),
-                                  ),
-                                );
-                              },
+                                    const SizedBox(width: 8),
+                                    const Icon(Icons.arrow_forward_ios, size: 16),
+                                  ],
+                                ),
+                                onTap: () => _mostrarModalSolicitud(context, request),
+                              ),
                             );
                           },
                         ),
@@ -396,9 +480,7 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
                       title: 'Mis Viajes',
                       icon: Icons.list_alt,
                       color: Colors.green,
-                      onTap: () {
-                        // Navegar a la pantalla de mis viajes
-                      },
+                      onTap: () => _verMisViajes(context),
                     ),
                     _DriverOptionCard(
                       title: 'Historial',
