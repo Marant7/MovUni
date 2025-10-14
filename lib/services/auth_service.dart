@@ -43,6 +43,7 @@ class AuthService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'rating': 5.0,
+        'totalRatings': 0,
         'totalTrips': 0,
         'status': 'active',
       });
