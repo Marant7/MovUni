@@ -5,11 +5,9 @@ class AuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
 
-  AuthService({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   /// Registro de usuario con validación de dominio institucional
   Future<User?> signUpWithEmail({
@@ -27,11 +25,8 @@ class AuthService {
         throw Exception('Solo se permiten correos institucionales de la UPT');
       }
 
-      UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential userCredential = await _auth
+          .createUserWithEmailAndPassword(email: email, password: password);
 
       await userCredential.user!.sendEmailVerification();
 
@@ -56,10 +51,12 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         throw Exception(
-            'El correo ya está registrado. Inicia sesión o recupera tu contraseña.');
+          'El correo ya está registrado. Inicia sesión o recupera tu contraseña.',
+        );
       } else if (e.code == 'weak-password') {
         throw Exception(
-            'La contraseña es demasiado débil. Use al menos 6 caracteres.');
+          'La contraseña es demasiado débil. Use al menos 6 caracteres.',
+        );
       } else if (e.code == 'invalid-email') {
         throw Exception('El formato del correo electrónico no es válido.');
       } else {
@@ -76,15 +73,27 @@ class AuthService {
     required String password,
   }) async {
     try {
-      UserCredential userCredential =
-          await _auth.signInWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-      if (!userCredential.user!.emailVerified) {
+      // IMPORTANTE: Recargar el usuario para obtener el estado actualizado de emailVerified
+      await userCredential.user!.reload();
+      User? refreshedUser = _auth.currentUser;
+
+      if (refreshedUser == null || !refreshedUser.emailVerified) {
         await _auth.signOut();
         throw Exception('Debes verificar tu correo antes de iniciar sesión.');
       }
 
-      return userCredential.user;
+      // Actualizar Firestore si el email fue verificado
+      await _firestore.collection('users').doc(refreshedUser.uid).update({
+        'emailVerified': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return refreshedUser;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         throw Exception('Usuario no encontrado.');
@@ -116,11 +125,29 @@ class AuthService {
     }
   }
 
+  /// Reenviar correo de verificación
+  Future<void> resendVerificationEmail() async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+      } else if (user == null) {
+        throw Exception('No hay usuario autenticado.');
+      } else {
+        throw Exception('El correo ya está verificado.');
+      }
+    } catch (e) {
+      throw Exception('Error al reenviar correo de verificación: $e');
+    }
+  }
+
   /// Refrescar verificación de email y actualizar en Firestore
   Future<void> refreshEmailVerification(User user) async {
     await user.reload();
-    if (user.emailVerified) {
-      await _firestore.collection('users').doc(user.uid).update({
+    User? refreshedUser = _auth.currentUser;
+
+    if (refreshedUser != null && refreshedUser.emailVerified) {
+      await _firestore.collection('users').doc(refreshedUser.uid).update({
         'emailVerified': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
