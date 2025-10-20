@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:movuni/services/session_service.dart';
-import 'package:movuni/dashboard/pasajero_dashboard.dart';
+import 'package:movuni/dashboard/estudiante_dashboard.dart';
 import 'package:movuni/dashboard/conductor_dashboard.dart';
 
 class UserRoleScreen extends StatefulWidget {
@@ -51,7 +51,7 @@ class _UserRoleScreenState extends State<UserRoleScreen> {
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const PassengerScreen()),
+        MaterialPageRoute(builder: (context) => const EstudianteDashboard()),
       );
     }
   }

@@ -183,6 +183,63 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
+  
+  void _mostrarDialogoRecuperarContrasena(BuildContext context) {
+    final TextEditingController emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Restablecer contraseña'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Correo electrónico',
+              hintText: 'Ingresa tu correo registrado',
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el modal
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final email = emailController.text.trim();
+                if (email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Por favor ingresa un correo')),
+                  );
+                  return;
+                }
+
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+                  Navigator.of(context).pop(); // Cerrar el modal
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Correo de recuperación enviado a $email')),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  String mensaje = 'Error al enviar el correo';
+                  if (e.code == 'user-not-found') {
+                    mensaje = 'No existe una cuenta con ese correo.';
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(mensaje)),
+                  );
+                }
+              },
+              child: const Text('Enviar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +374,7 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      print('Forgot password pressed');
+                      _mostrarDialogoRecuperarContrasena(context);
                     },
                     child: const Text(
                       '¿Olvidaste tu contraseña?',
