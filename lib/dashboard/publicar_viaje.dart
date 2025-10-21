@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- Importa esto para inputFormatters
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../map_picker.dart';
@@ -27,6 +27,8 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
   final TextEditingController _asientosController = TextEditingController(text: '1');
   final TextEditingController _precioController = TextEditingController(text: '5');
   final TextEditingController _descripcionController = TextEditingController();
+  final TextEditingController _yapeController = TextEditingController();
+  final TextEditingController _plinController = TextEditingController();
 
   List<Map<String, dynamic>> paradas = [];
   List<String> rutasPopulares = [
@@ -35,8 +37,8 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
 
   Map<String, bool> metodosPago = {
     'Efectivo': true,
-    'Yape (999123456)': false,
-    'Plin (999123456)': false,
+    'Yape': false,
+    'Plin': false,
   };
 
 
@@ -47,6 +49,40 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
       if (user == null) {
         _showCenterMessage('Debes iniciar sesión primero');
         return;
+      }
+
+      // Validar métodos de pago
+      if (!metodosPago['Efectivo']! && !metodosPago['Yape']! && !metodosPago['Plin']!) {
+        _showCenterMessage('Debes seleccionar al menos un método de pago');
+        return;
+      }
+
+      // Validar números de Yape/Plin si están seleccionados
+      if (metodosPago['Yape']! && _yapeController.text.trim().isEmpty) {
+        _showCenterMessage('Debes ingresar tu número de Yape');
+        return;
+      }
+      if (metodosPago['Plin']! && _plinController.text.trim().isEmpty) {
+        _showCenterMessage('Debes ingresar tu número de Plin');
+        return;
+      }
+
+      // Construir lista de métodos de pago con números
+      List<Map<String, dynamic>> metodosPagoList = [];
+      if (metodosPago['Efectivo']!) {
+        metodosPagoList.add({'tipo': 'Efectivo'});
+      }
+      if (metodosPago['Yape']!) {
+        metodosPagoList.add({
+          'tipo': 'Yape',
+          'numero': _yapeController.text.trim(),
+        });
+      }
+      if (metodosPago['Plin']!) {
+        metodosPagoList.add({
+          'tipo': 'Plin',
+          'numero': _plinController.text.trim(),
+        });
       }
 
       Map<String, dynamic> viaje = {
@@ -65,7 +101,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
         "hora": _horaController.text,
         "asientos": int.tryParse(_asientosController.text) ?? 1,
         "precio": double.tryParse(_precioController.text) ?? 5.0,
-        "metodosPago": metodosPago.entries.where((e)=>e.value).map((e)=>e.key).toList(),
+        "metodosPago": metodosPagoList,
         "descripcion": _descripcionController.text,
         "conductorId": user.uid,
         "timestamp": FieldValue.serverTimestamp(),
@@ -438,18 +474,90 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
 
               const Text('Métodos de pago que aceptas *', style: TextStyle(fontWeight: FontWeight.bold)),
               Column(
-                children: metodosPago.keys.map((metodo) => CheckboxListTile(
-                  value: metodosPago[metodo],
-                  onChanged: (val) {
-                    setState(() {
-                      metodosPago[metodo] = val ?? false;
-                    });
-                  },
-                  title: Text(metodo),
-                  controlAffinity: ListTileControlAffinity.leading,
-                  dense: true,
-                  activeColor: Colors.indigo,
-                )).toList(),
+                children: [
+                  CheckboxListTile(
+                    value: metodosPago['Efectivo'],
+                    onChanged: (val) {
+                      setState(() {
+                        metodosPago['Efectivo'] = val ?? false;
+                      });
+                    },
+                    title: const Text('Efectivo'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    dense: true,
+                    activeColor: Colors.indigo,
+                  ),
+                  CheckboxListTile(
+                    value: metodosPago['Yape'],
+                    onChanged: (val) {
+                      setState(() {
+                        metodosPago['Yape'] = val ?? false;
+                      });
+                    },
+                    title: const Text('Yape'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    dense: true,
+                    activeColor: Colors.indigo,
+                  ),
+                  if (metodosPago['Yape']!)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 40, right: 16, bottom: 8),
+                      child: TextField(
+                        controller: _yapeController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(9),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Número de Yape',
+                          hintText: '999123456',
+                          prefixIcon: const Icon(Icons.phone, color: Colors.purple),
+                          filled: true,
+                          fillColor: Colors.purple.withOpacity(0.05),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  CheckboxListTile(
+                    value: metodosPago['Plin'],
+                    onChanged: (val) {
+                      setState(() {
+                        metodosPago['Plin'] = val ?? false;
+                      });
+                    },
+                    title: const Text('Plin'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    dense: true,
+                    activeColor: Colors.indigo,
+                  ),
+                  if (metodosPago['Plin']!)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 40, right: 16, bottom: 8),
+                      child: TextField(
+                        controller: _plinController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(9),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Número de Plin',
+                          hintText: '999123456',
+                          prefixIcon: const Icon(Icons.phone, color: Colors.blue),
+                          filled: true,
+                          fillColor: Colors.blue.withOpacity(0.05),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
 

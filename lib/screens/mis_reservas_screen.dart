@@ -12,6 +12,190 @@ class MisReservasScreen extends StatefulWidget {
 class _MisReservasScreenState extends State<MisReservasScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
 
+  Future<void> _marcarComoPagado(String solicitudId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('solicitudes_viajes')
+          .doc(solicitudId)
+          .update({
+        'pago_realizado': true,
+        'fecha_pago': FieldValue.serverTimestamp(),
+        'pago_confirmado_pasajero': true,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Marcado como pagado. El conductor recibirá una notificación.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al marcar como pagado: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _mostrarDialogoPago(String solicitudId, Map<String, dynamic> solicitudData) {
+    final metodosPago = List<dynamic>.from(solicitudData['metodosPago'] ?? []);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Pago'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Monto a pagar: S/ ${solicitudData['precio']}'),
+                const SizedBox(height: 16),
+                const Text(
+                  'Métodos de pago disponibles:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                ...metodosPago.map((metodo) {
+                  if (metodo is Map<String, dynamic>) {
+                    final tipo = metodo['tipo'] ?? '';
+                    final numero = metodo['numero'];
+                    
+                    if (tipo == 'Efectivo') {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: const [
+                              Icon(Icons.money, color: Colors.green, size: 20),
+                              SizedBox(width: 8),
+                              Text('Efectivo - Paga al conductor'),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else if (tipo == 'Yape' && numero != null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.phone_android, color: Colors.purple, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Yape',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.purple,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text('Número: $numero', style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else if (tipo == 'Plin' && numero != null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(Icons.phone_iphone, color: Colors.blue, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Plin',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text('Número: $numero', style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                  return const SizedBox.shrink();
+                }).toList(),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '¿Ya realizaste el pago? Márcalo como pagado para que el conductor lo sepa.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _marcarComoPagado(solicitudId);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('Marcar como Pagado', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _cancelarReserva(String solicitudId, String motivo) async {
     try {
       // Obtener datos de la solicitud antes de cancelar
@@ -183,7 +367,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
             );
           }
 
-          final reservas = snapshot.data!.docs;
+              final reservas = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -192,8 +376,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
               final reserva = reservas[index];
               final reservaData = reserva.data() as Map<String, dynamic>;
               final status = reservaData['status'] ?? 'pendiente';
-              
-              return Card(
+              final pagoConfirmadoPasajero = reservaData['pago_confirmado_pasajero'] ?? false;              return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -244,6 +427,53 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                           Text('S/ ${reservaData['precio']}'),
                         ],
                       ),
+                      
+                      // Mostrar estado de pago para reservas aceptadas
+                      if (status == 'aceptada') ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: pagoConfirmadoPasajero 
+                                ? Colors.green.withOpacity(0.1) 
+                                : Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: pagoConfirmadoPasajero 
+                                  ? Colors.green.withOpacity(0.3) 
+                                  : Colors.orange.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                pagoConfirmadoPasajero 
+                                    ? Icons.check_circle 
+                                    : Icons.pending_actions,
+                                color: pagoConfirmadoPasajero 
+                                    ? Colors.green 
+                                    : Colors.orange,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  pagoConfirmadoPasajero 
+                                      ? 'Pago confirmado ✓' 
+                                      : 'Pago pendiente - Coordina con el conductor',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: pagoConfirmadoPasajero 
+                                        ? Colors.green 
+                                        : Colors.orange,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       
                       // Mostrar información del conductor para reservas aceptadas
                       if (status == 'aceptada') ...[
@@ -349,19 +579,39 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                       // Botón para cancelar (solo para reservas pendientes o aceptadas)
                       if (status == 'pendiente' || status == 'aceptada') ...[
                         const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () => _mostrarDialogoCancelacion(reserva.id, reservaData),
-                            icon: const Icon(Icons.cancel),
-                            label: Text(status == 'pendiente' 
-                                ? 'Cancelar Solicitud' 
-                                : 'Cancelar Reserva'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
+                        Row(
+                          children: [
+                            // Botón de pago solo para reservas aceptadas
+                            if (status == 'aceptada' && !pagoConfirmadoPasajero)
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _mostrarDialogoPago(reserva.id, reservaData),
+                                  icon: const Icon(Icons.payment, size: 18),
+                                  label: const Text('Confirmar Pago'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            if (status == 'aceptada' && !pagoConfirmadoPasajero)
+                              const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _mostrarDialogoCancelacion(reserva.id, reservaData),
+                                icon: const Icon(Icons.cancel, size: 18),
+                                label: Text(status == 'pendiente' 
+                                    ? 'Cancelar' 
+                                    : 'Cancelar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ],
