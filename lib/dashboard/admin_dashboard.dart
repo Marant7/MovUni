@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../login.dart';
+
+// 🔹 Páginas administrativas
+import 'admin_users_page.dart';
+import 'admin_viajes_page.dart';
+import 'admin_solicitudes_page.dart';
+import 'admin_notificaciones_page.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -19,6 +26,33 @@ class _AdminDashboardState extends State<AdminDashboard> {
     "Reportes y Estadísticas",
     "Rutas o Viajes Reportados"
   ];
+
+  // 🔹 Variables de métricas
+  int totalUsers = 0;
+  int totalTrips = 0;
+  int totalRequests = 0;
+  int totalNotifications = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  // 🔹 Cargar datos desde Firebase
+  Future<void> _loadDashboardData() async {
+    final usersSnap = await FirebaseFirestore.instance.collection('users').get();
+    final tripsSnap = await FirebaseFirestore.instance.collection('viajes').get();
+    final requestsSnap = await FirebaseFirestore.instance.collection('solicitudes_viajes').get();
+    final notifSnap = await FirebaseFirestore.instance.collection('notificaciones').get();
+
+    setState(() {
+      totalUsers = usersSnap.size;
+      totalTrips = tripsSnap.size;
+      totalRequests = requestsSnap.size;
+      totalNotifications = notifSnap.size;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,32 +75,61 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 child: Icon(Icons.admin_panel_settings, color: Colors.indigo, size: 40),
               ),
             ),
+
+            // ====== MENÚ LATERAL ======
             _buildDrawerItem(
               icon: Icons.home,
               text: "Inicio",
               index: 0,
             ),
-            _buildDrawerItem(
-              icon: Icons.people,
-              text: "Gestión de Usuarios",
-              index: 1,
+
+            ListTile(
+              leading: const Icon(Icons.people, color: Colors.indigo),
+              title: const Text("Gestión de Usuarios"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminUsersPage()),
+                );
+              },
             ),
-            _buildDrawerItem(
-              icon: Icons.settings,
-              text: "Configuración del Sistema",
-              index: 2,
+
+            ListTile(
+              leading: const Icon(Icons.request_page, color: Colors.purple),
+              title: const Text("Gestión de Solicitudes"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminSolicitudesPage()),
+                );
+              },
             ),
-            _buildDrawerItem(
-              icon: Icons.analytics,
-              text: "Reportes y Estadísticas",
-              index: 3,
+
+            ListTile(
+              leading: const Icon(Icons.notifications_active, color: Colors.red),
+              title: const Text("Gestión de Notificaciones"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminNotificacionesPage()),
+                );
+              },
             ),
-            _buildDrawerItem(
-              icon: Icons.map,
-              text: "Rutas o Viajes Reportados",
-              index: 4,
+
+            ListTile(
+              leading: const Icon(Icons.map, color: Colors.orange),
+              title: const Text("Gestión de Viajes"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AdminViajesPage()),
+                );
+              },
             ),
+
             const Divider(),
+
+            // ====== CERRAR SESIÓN ======
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text("Cerrar Sesión"),
@@ -88,9 +151,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Widget _buildDrawerItem({required IconData icon, required String text, required int index}) {
+  // === Construir los items del menú lateral ===
+  Widget _buildDrawerItem({
+    required IconData icon,
+    required String text,
+    required int index,
+  }) {
     return ListTile(
-      leading: Icon(icon, color: _selectedIndex == index ? Colors.indigo.shade700 : Colors.grey.shade700),
+      leading: Icon(
+        icon,
+        color: _selectedIndex == index ? Colors.indigo.shade700 : Colors.grey.shade700,
+      ),
       title: Text(
         text,
         style: TextStyle(
@@ -106,6 +177,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  // === Construir el contenido del cuerpo principal ===
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
@@ -120,71 +192,76 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  // === CONTENIDO DEL INICIO (MÉTRICAS Y RESUMEN) ===
   Widget _buildHomeContent() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "👋 Bienvenido, Administrador",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.indigo.shade900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            "Aquí puedes ver un resumen general del sistema y acceder a las configuraciones.",
-            style: TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-          const SizedBox(height: 25),
-
-          // Tarjetas de métricas
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatCard("Usuarios", "254", Icons.people, Colors.blue),
-              _buildStatCard("Rutas", "89", Icons.map, Colors.orange),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatCard("Reportes", "45", Icons.report, Colors.red),
-              _buildStatCard("Configuraciones", "12", Icons.settings, Colors.green),
-            ],
-          ),
-
-          const SizedBox(height: 30),
-          const Divider(thickness: 1.2),
-
-          // Gráfico decorativo (de muestra)
-          const SizedBox(height: 20),
-          Center(
-            child: Container(
-              height: 200,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.indigo.shade100),
+    return RefreshIndicator(
+      onRefresh: _loadDashboardData,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "👋 Bienvenido, Administrador",
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.indigo.shade900,
               ),
-              child: const Center(
-                child: Text(
-                  "📊 Gráfico de Actividad (ejemplo visual)",
-                  style: TextStyle(color: Colors.indigo, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Aquí puedes ver un resumen general del sistema y acceder a las configuraciones.",
+              style: TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+            const SizedBox(height: 25),
+
+            // ==== TARJETAS DE MÉTRICAS REAL ====
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatCard("Usuarios", "$totalUsers", Icons.people, Colors.blue),
+                _buildStatCard("Viajes", "$totalTrips", Icons.map, Colors.orange),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatCard("Solicitudes", "$totalRequests", Icons.request_page, Colors.purple),
+                _buildStatCard("Notificaciones", "$totalNotifications", Icons.notifications, Colors.red),
+              ],
+            ),
+
+            const SizedBox(height: 30),
+            const Divider(thickness: 1.2),
+
+            const SizedBox(height: 20),
+            Center(
+              child: Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.indigo.shade100),
+                ),
+                child: const Center(
+                  child: Text(
+                    "📊 Gráfico de Actividad (ejemplo visual)",
+                    style: TextStyle(color: Colors.indigo, fontSize: 18),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  // === Tarjeta para mostrar estadísticas ===
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 4,
@@ -194,7 +271,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         height: 120,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

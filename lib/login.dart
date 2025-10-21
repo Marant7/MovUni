@@ -94,6 +94,16 @@ class _LoginPageState extends State<LoginPage> {
         // Si existe, obtener el rol del documento
         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
         userRole = userData['role'] ?? 'estudiante';
+        
+        //VERIFICAR SI ESTÁ INACTIVO
+        if (userData['status'] == 'inactive') {
+          await FirebaseAuth.instance.signOut();
+          setState(() {
+            _errorMessage = 'Tu cuenta ha sido desactivada por el administrador.';
+            _isLoading = false;
+          });
+          return; // ⛔ Detiene el flujo del login
+        }
       }
 
       // Verificar correos especiales para admin
