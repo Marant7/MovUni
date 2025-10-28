@@ -341,6 +341,257 @@ class SolicitudesViajeScreen extends StatelessWidget {
     required this.viajeData,
   }) : super(key: key);
 
+  Future<void> _confirmarPago(
+    BuildContext context,
+    String solicitudId,
+    String metodoPago,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('solicitudes_viajes')
+          .doc(solicitudId)
+          .update({
+        'pago_confirmado_conductor': true,
+        'metodo_pago_usado': metodoPago,
+        'fecha_confirmacion_pago': FieldValue.serverTimestamp(),
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pago confirmado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al confirmar pago: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _mostrarDialogoConfirmarPago(
+    BuildContext context,
+    String solicitudId,
+    Map<String, dynamic> solicitudData,
+    String passengerName,
+  ) {
+    String? metodoPagoSeleccionado;
+    final metodosPago = List<dynamic>.from(solicitudData['metodosPago'] ?? []);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Row(
+                children: const [
+                  Icon(Icons.payment, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('Confirmar Pago'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.person, size: 18, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  passengerName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Monto: S/ ${solicitudData['precio']?.toStringAsFixed(2) ?? '0.00'}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '¿Con qué método pagó el pasajero?',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...metodosPago.map((metodo) {
+                      if (metodo is Map<String, dynamic>) {
+                        final tipo = metodo['tipo'] ?? '';
+                        final numero = metodo['numero'];
+                        
+                        return _buildMetodoPagoOption(
+                          tipo,
+                          numero,
+                          metodoPagoSeleccionado,
+                          (value) {
+                            setState(() {
+                              metodoPagoSeleccionado = value;
+                            });
+                          },
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }).toList(),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Esta acción confirmará que recibiste el pago del pasajero.',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: metodoPagoSeleccionado == null
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          _confirmarPago(
+                            dialogContext,
+                            solicitudId,
+                            metodoPagoSeleccionado!,
+                          );
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey[300],
+                  ),
+                  child: const Text('Confirmar Pago'),
+                ),
+              ],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildMetodoPagoOption(
+    String tipo,
+    String? numero,
+    String? seleccionado,
+    Function(String?) onChanged,
+  ) {
+    Color color;
+    IconData icon;
+    String subtitle = '';
+
+    switch (tipo) {
+      case 'Efectivo':
+        color = Colors.green;
+        icon = Icons.money;
+        subtitle = 'Pago en efectivo';
+        break;
+      case 'Yape':
+        color = Colors.purple;
+        icon = Icons.phone_android;
+        subtitle = numero != null ? 'Número: $numero' : '';
+        break;
+      case 'Plin':
+        color = Colors.blue;
+        icon = Icons.phone_iphone;
+        subtitle = numero != null ? 'Número: $numero' : '';
+        break;
+      default:
+        color = Colors.grey;
+        icon = Icons.payment;
+        subtitle = '';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: seleccionado == tipo ? color : color.withOpacity(0.3),
+          width: seleccionado == tipo ? 2 : 1,
+        ),
+      ),
+      child: RadioListTile<String>(
+        value: tipo,
+        groupValue: seleccionado,
+        onChanged: onChanged,
+        activeColor: color,
+        title: Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              tipo,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        subtitle: subtitle.isNotEmpty
+            ? Text(subtitle, style: const TextStyle(fontSize: 12))
+            : null,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -398,8 +649,11 @@ class SolicitudesViajeScreen extends StatelessWidget {
                   itemCount: solicitudes.length,
                   itemBuilder: (context, index) {
                     final solicitud = solicitudes[index];
-                    final status = solicitud['status'];
-                    final passengerId = solicitud['passenger_id'];
+                    final solicitudData = solicitud.data() as Map<String, dynamic>;
+                    final status = solicitudData['status'];
+                    final passengerId = solicitudData['passenger_id'];
+                    final pagoConfirmado = solicitudData['pago_confirmado_conductor'] ?? false;
+                    final metodoPagoUsado = solicitudData['metodo_pago_usado'];
 
                     return FutureBuilder<DocumentSnapshot>(
                       future: FirebaseFirestore.instance
@@ -408,14 +662,17 @@ class SolicitudesViajeScreen extends StatelessWidget {
                           .get(),
                       builder: (context, userSnapshot) {
                         String passengerName = 'Pasajero';
+                        String passengerPhone = '';
+                        
                         if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                          final userData = userSnapshot.data!;
+                          final userData = userSnapshot.data!.data() as Map<String, dynamic>;
                           passengerName = '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim();
+                          passengerPhone = userData['phone'] ?? '';
                         }
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
+                          child: ExpansionTile(
                             leading: CircleAvatar(
                               backgroundColor: _getStatusColor(status).withOpacity(0.2),
                               child: Icon(
@@ -423,23 +680,117 @@ class SolicitudesViajeScreen extends StatelessWidget {
                                 color: _getStatusColor(status),
                               ),
                             ),
-                            title: Text(passengerName),
-                            subtitle: Text(_getStatusText(status)),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(status).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                status.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: _getStatusColor(status),
+                            title: Text(
+                              passengerName,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_getStatusText(status)),
+                                if (passengerPhone.isNotEmpty)
+                                  Text('Tel: $passengerPhone', style: const TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (pagoConfirmado)
+                                  const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _getStatusColor(status).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: _getStatusColor(status),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (pagoConfirmado) ...[
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.check_circle, color: Colors.green),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text(
+                                                    '✓ Pago Confirmado',
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                  if (metodoPagoUsado != null)
+                                                    Text(
+                                                      'Método: $metodoPagoUsado',
+                                                      style: const TextStyle(fontSize: 12),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else if (status == 'aceptada') ...[
+                                      ElevatedButton.icon(
+                                        onPressed: () => _mostrarDialogoConfirmarPago(
+                                          context,
+                                          solicitud.id,
+                                          solicitudData,
+                                          passengerName,
+                                        ),
+                                        icon: const Icon(Icons.payment),
+                                        label: const Text('Confirmar Pago'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green[700],
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'No se puede confirmar pago para esta solicitud',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                         );
                       },
