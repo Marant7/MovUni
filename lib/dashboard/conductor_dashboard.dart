@@ -6,7 +6,7 @@ import 'package:movuni/services/session_service.dart';
 import '../login.dart';
 import '../profile_edit.dart';
 import 'publicar_viaje.dart';
-import 'historial_viajes.dart';
+import 'historial_viajes.dart'; // Contiene HistorialConductorPage
 import '../screens/mis_viajes_screen.dart';
 import 'estudiante_dashboard.dart';
 
@@ -72,7 +72,7 @@ class _ConductorDashboardState extends State<ConductorDashboard> {
   void _verHistorialViajes(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const HistorialViajesPage()),
+      MaterialPageRoute(builder: (_) => const HistorialConductorPage()),
     );
   }
 

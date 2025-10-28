@@ -4,6 +4,7 @@ import 'package:movuni/services/session_service.dart';
 import 'package:movuni/login.dart';
 import 'package:movuni/screens/active_trips_screen.dart';
 import 'package:movuni/screens/mis_reservas_screen.dart';
+import 'package:movuni/dashboard/historial_viajes.dart'; // Contiene HistorialEstudiantePage
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../dashboard/conductor_dashboard.dart';
@@ -93,6 +94,13 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
     );
   }
 
+  void _verHistorialEstudiante(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HistorialEstudiantePage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -157,7 +165,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                 title: const Text('Historial'),
                 onTap: () {
                   Navigator.pop(context);
-                  // TODO: Implementar historial de viajes del estudiante
+                  _verHistorialEstudiante(context);
                 },
               ),
               ListTile(
@@ -447,15 +455,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                       title: 'Historial',
                       icon: Icons.history,
                       color: Colors.purple,
-                      onTap: () {
-                        // TODO: Implementar historial
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Funcionalidad próximamente disponible'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                      },
+                      onTap: () => _verHistorialEstudiante(context),
                     ),
                     _StudentOptionCard(
                       title: 'Perfil',
