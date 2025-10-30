@@ -107,7 +107,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
         title: const Text('MOVUNI - Estudiante'),
-        backgroundColor: Colors.green[700],
+        backgroundColor: Colors.blue[800],
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -127,7 +127,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    const Icon(Icons.school, color: Colors.green, size: 30),
+                    const Icon(Icons.school, color: Colors.indigo, size: 30),
                     const SizedBox(width: 8),
                     const Text('MovUni', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
                   ],
@@ -201,7 +201,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
+            colors: [Colors.blue[50]!, Colors.white],
           ),
         ),
         child: Padding(
@@ -221,11 +221,11 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                     children: [
                       CircleAvatar(
                         radius: 30,
-                        backgroundColor: Colors.green[100],
+                        backgroundColor: Colors.blue[100],
                         child: Icon(
                           Icons.person,
                           size: 30,
-                          color: Colors.green[700],
+                          color: Colors.blue[800],
                         ),
                       ),
                       const SizedBox(width: 15),
@@ -238,7 +238,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green[700],
+                                color: Colors.blue[800],
                               ),
                             ),
                             const SizedBox(height: 5),
@@ -278,7 +278,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.green,
+                              color: Colors.blue,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -399,7 +399,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                             );
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[700],
+                            backgroundColor: Colors.blue[800],
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -420,7 +420,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.blue,
                 ),
               ),
               const SizedBox(height: 15),
@@ -437,7 +437,7 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                     _StudentOptionCard(
                       title: 'Viajes Activos',
                       icon: Icons.directions_bus,
-                      color: Colors.green,
+                      color: Colors.blue,
                       onTap: () {
                         Navigator.push(
                           context,
