@@ -4,10 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../map_picker.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../constants/trip_status.dart'; // ✅ NUEVO IMPORT
 
 // Coordenadas de la Universidad Privada de Tacna
 final LatLng universidadTacna = LatLng(-18.0048523, -70.2261172);
-
 LatLng? origenLatLng = universidadTacna;
 LatLng? destinoLatLng;
 
@@ -41,8 +41,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
     'Plin': false,
   };
 
-
-
+  // ✅ FUNCIÓN ACTUALIZADA CON ESTADO
   Future<void> _guardarViaje() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
@@ -96,7 +95,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
           "lat": destinoLatLng?.latitude,
           "lng": destinoLatLng?.longitude,
         },
-        "paradas": paradas, // Ya contiene nombre, lat, lng
+        "paradas": paradas,
         "fecha": _fechaController.text,
         "hora": _horaController.text,
         "asientos": int.tryParse(_asientosController.text) ?? 1,
@@ -104,6 +103,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
         "metodosPago": metodosPagoList,
         "descripcion": _descripcionController.text,
         "conductorId": user.uid,
+        "estado": TripStatus.activo, // ✅ NUEVO: Estado inicial
         "timestamp": FieldValue.serverTimestamp(),
       };
 
@@ -151,14 +151,14 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
         content: const Text('¿Desea continuar con la publicación?', textAlign: TextAlign.center),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(), // NO: cerrar y seguir en formulario
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('No', style: TextStyle(color: Colors.red)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
             onPressed: () {
-              Navigator.of(context).pop(); // Cierra el diálogo
-              _guardarViaje(); // SÍ: Publica viaje
+              Navigator.of(context).pop();
+              _guardarViaje();
             },
             child: const Text('Sí'),
           ),
@@ -207,7 +207,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               const SizedBox(height: 4),
               const Text('Conecta con otros estudiantes universitarios', style: TextStyle(color: Colors.black54, fontSize: 14)),
               const SizedBox(height: 18),
-
               const Text('Rutas populares (opcional)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 10),
               Column(
@@ -233,7 +232,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 )).toList(),
               ),
               const SizedBox(height: 16),
-
               const Text('Origen *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
@@ -268,7 +266,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               const Text('Destino *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
@@ -303,7 +300,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               const Text('Paradas intermedias (opcional)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               Row(
@@ -350,7 +346,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                         final lngMatch = RegExp(r'Lng:\s*(-?\d+\.\d+)').firstMatch(texto);
                         if (latMatch != null) lat = double.tryParse(latMatch.group(1)!);
                         if (lngMatch != null) lng = double.tryParse(lngMatch.group(1)!);
-
                         setState(() {
                           paradas.add({
                             "nombre": texto,
@@ -364,7 +359,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                   ),
                 ],
               ),
-
               if (paradas.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8.0),
@@ -383,7 +377,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                   ),
                 ),
               const SizedBox(height: 16),
-
               const Text('Fecha *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
@@ -409,7 +402,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 },
               ),
               const SizedBox(height: 16),
-
               const Text('Hora de salida *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
@@ -433,14 +425,13 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 },
               ),
               const SizedBox(height: 16),
-
               const Text('Asientos disponibles *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
                 controller: _asientosController,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly, // SOLO NÚMEROS
+                  FilteringTextInputFormatter.digitsOnly,
                 ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.event_seat, color: Colors.indigo),
@@ -451,14 +442,13 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 ),
               ),
               const SizedBox(height: 16),
-
               const Text('Precio por asiento *', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
                 controller: _precioController,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')), // NÚMEROS Y UN PUNTO
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.attach_money, color: Colors.indigo),
@@ -471,7 +461,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
               const SizedBox(height: 3),
               const Text('Precio sugerido: S/ 5 - S/ 15', style: TextStyle(color: Colors.black45, fontSize: 13)),
               const SizedBox(height: 16),
-
               const Text('Métodos de pago que aceptas *', style: TextStyle(fontWeight: FontWeight.bold)),
               Column(
                 children: [
@@ -560,7 +549,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 ],
               ),
               const SizedBox(height: 16),
-
               const Text('Descripción adicional (opcional)', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 7),
               TextField(
@@ -574,7 +562,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                 maxLines: 2,
               ),
               const SizedBox(height: 18),
-
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6F8FC),
@@ -606,7 +593,6 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
@@ -617,7 +603,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  onPressed: _confirmarPublicacion, // <-- CAMBIA AQUÍ
+                  onPressed: _confirmarPublicacion,
                   child: const Text('Publicar Viaje', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                 ),
               ),
