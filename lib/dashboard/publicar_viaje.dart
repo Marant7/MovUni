@@ -29,6 +29,7 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
   final TextEditingController _descripcionController = TextEditingController();
   final TextEditingController _yapeController = TextEditingController();
   final TextEditingController _plinController = TextEditingController();
+  String? _userPhone;
 
   List<Map<String, dynamic>> paradas = [];
   List<String> rutasPopulares = [
@@ -41,12 +42,75 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
     'Plin': false,
   };
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserPhone();
+  }
+
+  // Carga el teléfono del usuario logueado desde la colección `users` en Firestore.
+  Future<void> _loadUserPhone() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      String? phoneFromDoc;
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null && data['phone'] != null) {
+          phoneFromDoc = data['phone'] as String?;
+        }
+      }
+      setState(() {
+        // Prioriza el número guardado en la colección users, si no existe usa phoneNumber de FirebaseAuth
+        _userPhone = phoneFromDoc ?? FirebaseAuth.instance.currentUser?.phoneNumber;
+        // Si alguno de los métodos ya está marcado, rellenar sus inputs si están vacíos
+        if (metodosPago['Yape']! && _yapeController.text.trim().isEmpty) {
+          _yapeController.text = _userPhone ?? '';
+        }
+        if (metodosPago['Plin']! && _plinController.text.trim().isEmpty) {
+          _plinController.text = _userPhone ?? '';
+        }
+      });
+    } catch (e) {
+      // No bloquear la UI por este error; simplemente no auto-llenar si falla
+    }
+  }
+
   // ✅ FUNCIÓN ACTUALIZADA CON ESTADO
   Future<void> _guardarViaje() async {
     try {
       User? user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         _showCenterMessage('Debes iniciar sesión primero');
+        return;
+      }
+
+      // Validaciones de campos requeridos (paradas y descripción son opcionales)
+      if (origenLatLng == null) {
+        _showCenterMessage('Debes seleccionar el origen');
+        return;
+      }
+      if (destinoLatLng == null) {
+        _showCenterMessage('Debes seleccionar el destino');
+        return;
+      }
+      if (_fechaController.text.trim().isEmpty) {
+        _showCenterMessage('Debes seleccionar la fecha');
+        return;
+      }
+      if (_horaController.text.trim().isEmpty) {
+        _showCenterMessage('Debes seleccionar la hora de salida');
+        return;
+      }
+      final int asientos = int.tryParse(_asientosController.text) ?? 0;
+      if (asientos <= 0) {
+        _showCenterMessage('El número de asientos debe ser mayor a 0');
+        return;
+      }
+      final double precio = double.tryParse(_precioController.text) ?? 0.0;
+      if (precio <= 0) {
+        _showCenterMessage('El precio debe ser mayor a 0');
         return;
       }
 
@@ -57,13 +121,28 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
       }
 
       // Validar números de Yape/Plin si están seleccionados
-      if (metodosPago['Yape']! && _yapeController.text.trim().isEmpty) {
-        _showCenterMessage('Debes ingresar tu número de Yape');
-        return;
+      final phoneYape = _yapeController.text.trim();
+      final phonePlin = _plinController.text.trim();
+      final validPhoneRegex = RegExp(r'^\d{9}$');
+      if (metodosPago['Yape']!) {
+        if (phoneYape.isEmpty) {
+          _showCenterMessage('Debes ingresar tu número de Yape');
+          return;
+        }
+        if (!validPhoneRegex.hasMatch(phoneYape)) {
+          _showCenterMessage('Número de Yape inválido: debe tener 9 dígitos');
+          return;
+        }
       }
-      if (metodosPago['Plin']! && _plinController.text.trim().isEmpty) {
-        _showCenterMessage('Debes ingresar tu número de Plin');
-        return;
+      if (metodosPago['Plin']!) {
+        if (phonePlin.isEmpty) {
+          _showCenterMessage('Debes ingresar tu número de Plin');
+          return;
+        }
+        if (!validPhoneRegex.hasMatch(phonePlin)) {
+          _showCenterMessage('Número de Plin inválido: debe tener 9 dígitos');
+          return;
+        }
       }
 
       // Construir lista de métodos de pago con números
@@ -481,6 +560,10 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                     onChanged: (val) {
                       setState(() {
                         metodosPago['Yape'] = val ?? false;
+                        // Auto-fill con el teléfono del usuario si está seleccionado y el campo está vacío
+                        if (metodosPago['Yape']! && _yapeController.text.trim().isEmpty) {
+                          _yapeController.text = _userPhone ?? FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+                        }
                       });
                     },
                     title: const Text('Yape'),
@@ -516,6 +599,10 @@ class _PublicarViajePageState extends State<PublicarViajePage> {
                     onChanged: (val) {
                       setState(() {
                         metodosPago['Plin'] = val ?? false;
+                        // Auto-fill con el teléfono del usuario si está seleccionado y el campo está vacío
+                        if (metodosPago['Plin']! && _plinController.text.trim().isEmpty) {
+                          _plinController.text = _userPhone ?? FirebaseAuth.instance.currentUser?.phoneNumber ?? '';
+                        }
                       });
                     },
                     title: const Text('Plin'),
