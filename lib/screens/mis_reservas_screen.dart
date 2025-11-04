@@ -202,6 +202,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
     );
   }
 
+  // ⭐ MÉTODO CORREGIDO - AHORA DEVUELVE EL ASIENTO AL VIAJE
   Future<void> _cancelarReserva(String solicitudId, String motivo) async {
     try {
       // Obtener datos de la solicitud antes de cancelar
@@ -211,8 +212,9 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
           .get();
       
       if (!solicitudDoc.exists) return;
-
       final solicitudData = solicitudDoc.data()!;
+      final tripId = solicitudData['trip_id'];
+      final conductorId = solicitudData['conductor_id'];
 
       // Actualizar el estado de la solicitud a cancelado por pasajero
       await FirebaseFirestore.instance
@@ -224,15 +226,27 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
         'fecha_cancelacion': FieldValue.serverTimestamp(),
       });
 
+      // ⭐ DEVOLVER EL ASIENTO AL VIAJE (ESTO ES LO QUE FALTABA)
+      final tripRef = FirebaseFirestore.instance.collection('viajes').doc(tripId);
+      final tripSnapshot = await tripRef.get();
+      
+      if (tripSnapshot.exists) {
+        final currentSeats = tripSnapshot.data()?['asientos'] ?? 0;
+        await tripRef.update({
+          'asientos': currentSeats + 1, // Incrementar asientos disponibles
+        });
+      }
+
       // Notificar al conductor
       await FirebaseFirestore.instance
           .collection('notificaciones')
           .add({
-        'usuario_id': solicitudData['conductor_id'],
+        'usuario_id': conductorId,
         'titulo': 'Reserva Cancelada',
         'mensaje': 'Un pasajero ha cancelado su reserva para el viaje ${solicitudData['origen']['nombre']} → ${solicitudData['destino']['nombre']}. Motivo: $motivo',
         'tipo': 'cancelacion_reserva',
         'solicitud_id': solicitudId,
+        'trip_id': tripId,
         'leido': false,
         'fecha': FieldValue.serverTimestamp(),
       });
@@ -240,7 +254,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Reserva cancelada correctamente'),
+            content: Text('Reserva cancelada correctamente. El asiento está nuevamente disponible.'),
             backgroundColor: Colors.green,
           ),
         );
@@ -373,7 +387,7 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
             );
           }
 
-              final reservas = snapshot.data!.docs;
+          final reservas = snapshot.data!.docs;
 
           return ListView.builder(
             padding: const EdgeInsets.all(16),
@@ -382,18 +396,20 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
               final reserva = reservas[index];
               final reservaData = reserva.data() as Map<String, dynamic>;
               final status = reservaData['status'] ?? 'pendiente';
-              final pagoConfirmadoPasajero = reservaData['pago_confirmado_pasajero'] ?? false;              return Card(
+              final pagoConfirmadoPasajero = reservaData['pago_confirmado_pasajero'] ?? false;
+
+              return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: AddressPair(data: reservaData),
-                                  ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AddressPair(data: reservaData),
+                          ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
