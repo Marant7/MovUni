@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:movuni/screens/trip_detail_screen.dart';
+import 'package:movuni/utils/address_resolver.dart';
 
 class ActiveTripsScreen extends StatelessWidget {
   const ActiveTripsScreen({super.key});
@@ -40,8 +41,6 @@ class ActiveTripsScreen extends StatelessWidget {
             itemCount: trips.length,
             itemBuilder: (context, index) {
               final trip = trips[index];
-              final destino = trip['destino']['nombre'] ?? 'Sin destino';
-              final origen = trip['origen']['nombre'] ?? 'Sin origen';
               final hora = trip['hora'] ?? '';
               final precio = trip['precio'] ?? 0;
               final asientos = trip['asientos'] ?? 0;
@@ -52,7 +51,7 @@ class ActiveTripsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: ListTile(
-                  title: Text('$origen → $destino'),
+                  title: AddressPair(data: trip.data() as Map<String, dynamic>),
                   subtitle: Text('Hora: $hora • Asientos: $asientos • Precio: S/$precio'),
                   leading: const Icon(Icons.directions_car, color: Colors.green),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),

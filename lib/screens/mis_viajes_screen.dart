@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/trip_status.dart';
 import '../services/rating_service.dart';
+import 'package:movuni/utils/address_resolver.dart';
 
 class MisViajesScreen extends StatefulWidget {
   const MisViajesScreen({Key? key}) : super(key: key);
@@ -183,7 +184,13 @@ class _MisViajesScreenState extends State<MisViajesScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Viaje: ${viajeData['origen']['nombre']} → ${viajeData['destino']['nombre']}'),
+              Row(
+                children: [
+                  const Text('Viaje: '),
+                  const SizedBox(width: 6),
+                  Expanded(child: AddressPair(data: viajeData)),
+                ],
+              ),
               const SizedBox(height: 8),
               Text('Fecha: ${viajeData['fecha']} - ${viajeData['hora']}'),
               const SizedBox(height: 16),
@@ -301,13 +308,7 @@ class _MisViajesScreenState extends State<MisViajesScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              '${viajeData['origen']['nombre']} → ${viajeData['destino']['nombre']}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: AddressPair(data: viajeData),
                           ),
                           _buildStatusBadge(estado),
                         ],
@@ -566,12 +567,9 @@ class SolicitudesViajeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${viajeData['origen']['nombre']} → ${viajeData['destino']['nombre']}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    AddressPair(
+                      data: viajeData,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text('${viajeData['fecha']} - ${viajeData['hora']}'),
@@ -984,12 +982,9 @@ class _PasajerosViajeScreenState extends State<PasajerosViajeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${widget.viajeData['origen']['nombre']} → ${widget.viajeData['destino']['nombre']}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    AddressPair(
+                      data: widget.viajeData,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text('${widget.viajeData['fecha']} - ${widget.viajeData['hora']}'),

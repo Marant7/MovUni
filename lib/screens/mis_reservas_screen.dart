@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:movuni/utils/address_resolver.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class MisReservasScreen extends StatefulWidget {
@@ -11,6 +12,11 @@ class MisReservasScreen extends StatefulWidget {
 
 class _MisReservasScreenState extends State<MisReservasScreen> {
   final User? user = FirebaseAuth.instance.currentUser;
+  
+  @override
+  void initState() {
+    super.initState();
+  }
 
   Future<void> _marcarComoPagado(String solicitudId) async {
     try {
@@ -383,17 +389,11 @@ class _MisReservasScreenState extends State<MisReservasScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${reservaData['origen']['nombre']} → ${reservaData['destino']['nombre']}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: AddressPair(data: reservaData),
+                                  ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(

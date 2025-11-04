@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:movuni/utils/address_resolver.dart';
 
 // ============================================================
 // HISTORIAL SOLO PARA CONDUCTORES
@@ -92,8 +93,7 @@ class _HistorialConductorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final origen = viaje['origen']?['nombre'] ?? 'Sin origen';
-    final destino = viaje['destino']?['nombre'] ?? 'Sin destino';
+  // Si el documento incluye nombre lo usaremos; si no, resolveremos por coordenadas abajo via AddressPair
     final fecha = viaje['fecha'] ?? '';
     final hora = viaje['hora'] ?? '';
     final precio = viaje['precio'] ?? 0;
@@ -140,13 +140,8 @@ class _HistorialConductorCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '$origen → $destino',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      // Mostrar direcciones resueltas (reverse-geocoding) o coordenadas como fallback
+                      AddressPair(data: viaje),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -327,8 +322,7 @@ class _HistorialEstudianteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final origen = reserva['origen']?['nombre'] ?? 'Sin origen';
-    final destino = reserva['destino']?['nombre'] ?? 'Sin destino';
+  // El nombre o las coordenadas serán mostradas por AddressPair (reverse-geocoding)
     final fecha = reserva['fecha_viaje'] ?? '';
     final hora = reserva['hora'] ?? '';
     final precio = reserva['precio'] ?? 0;
@@ -364,13 +358,8 @@ class _HistorialEstudianteCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '$origen → $destino',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      // Mostrar direcciones resueltas (reverse-geocoding) o coordenadas como fallback
+                      AddressPair(data: reserva),
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -490,3 +479,5 @@ class _InfoChip extends StatelessWidget {
     );
   }
 }
+
+// AddressPair and resolver moved to shared util `lib/utils/address_resolver.dart`

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:movuni/utils/address_resolver.dart';
 
 class TripDetailScreen extends StatelessWidget {
   final DocumentSnapshot trip;
@@ -250,9 +251,8 @@ class TripDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final destino = trip['destino']['nombre'] ?? 'Sin destino';
-    final origen = trip['origen']['nombre'] ?? 'Sin origen';
-    final hora = trip['hora'] ?? '';
+  // origen/destino serán resueltos por AddressPair; no necesitamos extraerlos aquí
+  final hora = trip['hora'] ?? '';
     final precio = trip['precio'] ?? 0;
     final asientos = trip['asientos'] ?? 0;
     final descripcion = trip['descripcion'] ?? 'Sin descripción';
@@ -281,13 +281,8 @@ class TripDetailScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '$origen → $destino',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            // Mostrar direcciones resueltas (origen → destino)
+                            AddressPair(data: trip.data() as Map<String, dynamic>),
                             const SizedBox(height: 16),
                             _buildDetailRow(Icons.access_time, 'Hora: $hora'),
                             _buildDetailRow(Icons.event, 'Fecha: ${trip['fecha']}'),
@@ -317,7 +312,17 @@ class TripDetailScreen extends StatelessWidget {
                                   children: [
                                     const Icon(Icons.location_on, size: 16, color: Colors.orange),
                                     const SizedBox(width: 4),
-                                    Expanded(child: Text('${p['nombre'] ?? 'Sin nombre'}')),
+                                    Expanded(
+                                      child: FutureBuilder<String>(
+                                        future: resolveAddressFromData(p as Map<String, dynamic>?, p['nombre'] ?? 'Sin nombre'),
+                                        builder: (context, snap) {
+                                          if (snap.connectionState == ConnectionState.waiting) {
+                                            return const Text('Cargando...');
+                                          }
+                                          return Text(snap.data ?? (p['nombre'] ?? 'Sin nombre'));
+                                        },
+                                      ),
+                                    ),
                                   ],
                                 ),
                               )).toList(),
