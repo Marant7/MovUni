@@ -63,47 +63,62 @@ class _LoginPageState extends State<LoginPage> {
 
       _failedAttempts = 0; // Reinicia el contador si el login es exitoso
 
-      // Verificar si existe en Firestore o crear perfil básico
+      // Recargar el usuario para obtener el estado actualizado de emailVerified
+      await userCredential.user!.reload();
+      User? refreshedUser = FirebaseAuth.instance.currentUser;
+
+      // Verificar si el correo está verificado en Firebase Auth
+      if (refreshedUser == null || !refreshedUser.emailVerified) {
+        await FirebaseAuth.instance.signOut();
+        setState(() {
+          _errorMessage = 'Debes verificar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Verificar si existe en Firestore
       DocumentSnapshot userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userCredential.user!.uid)
           .get();
 
-      String userRole = 'estudiante'; // Rol por defecto
-
       if (!userDoc.exists) {
-        // Si no existe en Firestore, crear un perfil básico
+        // Si el usuario no existe en Firestore, cerrar sesión y mostrar error
+        await FirebaseAuth.instance.signOut();
+        setState(() {
+          _errorMessage = 'No existe una cuenta registrada con este correo. Por favor regístrate primero.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Obtener datos del usuario de Firestore
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      String userRole = userData['role'] ?? 'estudiante';
+      
+      // Verificar el campo emailVerified en Firestore
+      bool emailVerifiedInFirestore = userData['emailVerified'] ?? false;
+      
+      if (!emailVerifiedInFirestore) {
+        // Actualizar el campo en Firestore si ya está verificado en Auth
         await FirebaseFirestore.instance
             .collection('users')
             .doc(userCredential.user!.uid)
-            .set({
-          'firstName': email.split('@')[0], // Usar parte del email como nombre temporal
-          'lastName': '',
-          'email': email,
-          'role': userRole,
-          'university': 'Universidad Privada de Tacna',
-          'isDriver': false,
-          'createdAt': FieldValue.serverTimestamp(),
+            .update({
+          'emailVerified': true,
           'updatedAt': FieldValue.serverTimestamp(),
-          'rating': 5.0,
-          'totalTrips': 0,
-          'status': 'active',
-          'profileComplete': false, // Marcar que el perfil necesita completarse
         });
-      } else {
-        // Si existe, obtener el rol del documento
-        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-        userRole = userData['role'] ?? 'estudiante';
-        
-        //VERIFICAR SI ESTÁ INACTIVO
-        if (userData['status'] == 'inactive') {
-          await FirebaseAuth.instance.signOut();
-          setState(() {
-            _errorMessage = 'Tu cuenta ha sido desactivada por el administrador.';
-            _isLoading = false;
-          });
-          return; // ⛔ Detiene el flujo del login
-        }
+      }
+      
+      // VERIFICAR SI ESTÁ INACTIVO
+      if (userData['status'] == 'inactive') {
+        await FirebaseAuth.instance.signOut();
+        setState(() {
+          _errorMessage = 'Tu cuenta ha sido desactivada por el administrador.';
+          _isLoading = false;
+        });
+        return;
       }
 
       // Verificar correos especiales para admin
@@ -124,11 +139,10 @@ class _LoginPageState extends State<LoginPage> {
           break;
         case 'estudiante':
         case 'conductor':
-          // Para estudiantes y conductores, redirigir a la pantalla de selección de rol
           destinationScreen = UserRoleScreen();
           break;
         default:
-          destinationScreen = UserRoleScreen(); // Pantalla de selección por defecto
+          destinationScreen = UserRoleScreen();
       }
 
       if (mounted) {
@@ -161,10 +175,7 @@ class _LoginPageState extends State<LoginPage> {
       String errorMessage;
       switch (e.code) {
         case 'user-not-found':
-          errorMessage = 'Usuario no encontrado. ¿Ya tienes una cuenta creada?';
-          break;
-        case 'wrong-password':
-          errorMessage = 'Contraseña incorrecta.';
+          errorMessage = 'No existe una cuenta con este correo. ¿Ya te registraste?';
           break;
         case 'invalid-email':
           errorMessage = 'El formato del correo electrónico no es válido.';
@@ -176,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
           errorMessage = 'Demasiados intentos de inicio de sesión. Intenta más tarde.';
           break;
         case 'invalid-credential':
-          errorMessage = 'Credenciales inválidas. Verifica tu correo y contraseña.';
+          errorMessage = 'Credenciales inválidas. Verifica tu correo y/o contraseña.';
           break;
         default:
           errorMessage = 'Correo o contraseña incorrectos. Por favor verifica tus datos.';
@@ -213,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // Cerrar el modal
+                Navigator.of(context).pop();
               },
               child: const Text('Cancelar'),
             ),
@@ -229,7 +240,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 try {
                   await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-                  Navigator.of(context).pop(); // Cerrar el modal
+                  Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Correo de recuperación enviado a $email')),
                   );
@@ -254,7 +265,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F5FD), // Light blue background
+      backgroundColor: const Color(0xFFF0F5FD),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -276,7 +287,6 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 const SizedBox(height: 20),
-                // Car icon
                 Container(
                   padding: const EdgeInsets.all(12.0),
                   decoration: BoxDecoration(
@@ -476,14 +486,14 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        'Cualquier correo @virtual.upt.pe puede acceder al sistema',
+                        'Solo puedes iniciar sesión con una cuenta previamente registrada',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.blue.shade700,
                         ),
                       ),
                       Text(
-                        'Si no tienes perfil, se creará uno automáticamente',
+                        'Debes verificar tu correo antes de poder iniciar sesión',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.blue.shade700,
