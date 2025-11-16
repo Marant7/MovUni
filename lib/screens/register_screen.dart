@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:movuni/services/auth_service.dart';
 import 'package:movuni/widgets/custom_textfield.dart';
 
@@ -17,6 +18,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _dniController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  
+  // Controladores para datos del vehículo
+  final TextEditingController _licensePlateController = TextEditingController();
+  final TextEditingController _vehicleBrandController = TextEditingController();
+  final TextEditingController _vehicleModelController = TextEditingController();
+  final TextEditingController _vehicleColorController = TextEditingController();
+  final TextEditingController _vehicleYearController = TextEditingController();
+  final TextEditingController _licenseNumberController = TextEditingController();
+  
   final _formKey = GlobalKey<FormState>();
   
   bool _isLoading = false;
@@ -27,6 +37,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _isLoading = true);
       
       try {
+        // Preparar datos del vehículo si es conductor
+        Map<String, dynamic>? vehicleData;
+        if (_isDriver) {
+          vehicleData = {
+            'licensePlate': _licensePlateController.text.trim().toUpperCase(),
+            'brand': _vehicleBrandController.text.trim(),
+            'model': _vehicleModelController.text.trim(),
+            'color': _vehicleColorController.text.trim(),
+            'year': int.parse(_vehicleYearController.text.trim()),
+            'licenseNumber': _licenseNumberController.text.trim(),
+            'seats': 4, // Por defecto 4 asientos disponibles
+            'verified': false, // Requiere verificación del admin
+          };
+        }
+        
         await AuthService().signUpWithEmail(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
@@ -35,14 +60,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
           dni: _dniController.text.trim(),
           phone: _phoneController.text.trim(),
           isDriver: _isDriver,
-          role: _isDriver ? 'conductor' : 'estudiante', // Rol automático basado en si es conductor
+          role: _isDriver ? 'conductor' : 'estudiante',
+          vehicleData: vehicleData,
         );
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('¡Registro exitoso! Verifica tu correo.'),
+            SnackBar(
+              content: Text(
+                _isDriver 
+                  ? '¡Registro exitoso! Verifica tu correo. Tu vehículo será revisado por el administrador.'
+                  : '¡Registro exitoso! Verifica tu correo para poder iniciar sesión.'
+              ),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
             ),
           );
           Navigator.pop(context);
@@ -120,7 +151,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 30),
                   
-                  // Campos de formulario
+                  // DATOS PERSONALES
+                  _buildSectionTitle('Datos Personales'),
+                  const SizedBox(height: 15),
+                  
                   Row(
                     children: [
                       Expanded(
@@ -149,9 +183,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     labelText: 'DNI',
                     prefixIcon: Icons.badge,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(8),
+                    ],
                     validator: (value) {
                       if (value?.isEmpty ?? true) return 'Ingresa tu DNI';
-                      if (value!.length != 8) return 'El DNI debe tener 8 dígitos';
+                      if (value!.length != 8) return 'El DNI debe tener exactamente 8 dígitos';
                       return null;
                     },
                   ),
@@ -161,10 +199,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _phoneController,
                     labelText: 'Teléfono',
                     prefixIcon: Icons.phone,
-                    keyboardType: TextInputType.phone,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(9),
+                    ],
                     validator: (value) {
                       if (value?.isEmpty ?? true) return 'Ingresa tu teléfono';
-                      if (value!.length != 9) return 'El teléfono debe tener 9 dígitos';
+                      if (value!.length != 9) return 'El teléfono debe tener exactamente 9 dígitos';
                       return null;
                     },
                   ),
@@ -203,75 +245,236 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 25),
                   
-                  // Información sobre el rol automático
+                  // SWITCH PARA CONDUCTOR
                   Container(
-                    padding: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(10.0),
-                      border: Border.all(color: Colors.blue.shade200),
+                      color: _isDriver ? Colors.blue.shade50 : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isDriver ? Colors.blue.shade300 : Colors.grey.shade300,
+                        width: 2,
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Información del registro:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade800,
+                        Icon(
+                          Icons.directions_car,
+                          color: _isDriver ? Colors.blue.shade700 : Colors.grey.shade600,
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Registrarme como conductor',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: _isDriver ? Colors.blue.shade900 : Colors.black87,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '• Con tu correo @virtual.upt.pe serás registrado automáticamente como estudiante UPT',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue.shade700,
+                              const SizedBox(height: 4),
+                              Text(
+                                'Podré ofrecer viajes y ganar dinero',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '• Si marcas la opción de conductor, también podrás ofrecer viajes',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue.shade700,
-                          ),
+                        Switch(
+                          value: _isDriver,
+                          onChanged: (value) => setState(() => _isDriver = value),
+                          activeColor: Colors.blue[800],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 15),
                   
-                  // Checkbox para conductor
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(10),
+                  // FORMULARIO DE VEHÍCULO (aparece si es conductor)
+                  AnimatedCrossFade(
+                    firstChild: const SizedBox.shrink(),
+                    secondChild: Column(
+                      children: [
+                        const SizedBox(height: 25),
+                        _buildSectionTitle('Datos del Vehículo'),
+                        const SizedBox(height: 15),
+                        
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.amber.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber, color: Colors.amber.shade800, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Debes tener licencia de conducir vigente para ser conductor',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        CustomTextField(
+                          controller: _licensePlateController,
+                          labelText: 'Placa del vehículo',
+                          hintText: 'Ej: ABC-123',
+                          prefixIcon: Icons.pin,
+                          inputFormatters: [
+                            LengthLimitingTextInputFormatter(7),
+                            UpperCaseTextFormatter(),
+                          ],
+                          validator: (value) {
+                            if (!_isDriver) return null;
+                            if (value?.isEmpty ?? true) return 'Ingresa la placa';
+                            if (value!.length < 6) return 'Placa inválida';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _vehicleBrandController,
+                                labelText: 'Marca',
+                                hintText: 'Ej: Toyota',
+                                prefixIcon: Icons.branding_watermark,
+                                validator: (value) {
+                                  if (!_isDriver) return null;
+                                  if (value?.isEmpty ?? true) return 'Ingresa la marca';
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _vehicleModelController,
+                                labelText: 'Modelo',
+                                hintText: 'Ej: Corolla',
+                                prefixIcon: Icons.directions_car_outlined,
+                                validator: (value) {
+                                  if (!_isDriver) return null;
+                                  if (value?.isEmpty ?? true) return 'Ingresa el modelo';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        Row(
+                          children: [
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _vehicleColorController,
+                                labelText: 'Color',
+                                hintText: 'Ej: Blanco',
+                                prefixIcon: Icons.palette,
+                                validator: (value) {
+                                  if (!_isDriver) return null;
+                                  if (value?.isEmpty ?? true) return 'Ingresa el color';
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: CustomTextField(
+                                controller: _vehicleYearController,
+                                labelText: 'Año',
+                                hintText: '2020',
+                                prefixIcon: Icons.calendar_today,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(4),
+                                ],
+                                validator: (value) {
+                                  if (!_isDriver) return null;
+                                  if (value?.isEmpty ?? true) return 'Ingresa el año';
+                                  int? year = int.tryParse(value!);
+                                  if (year == null || year < 1990 || year > DateTime.now().year) {
+                                    return 'Año inválido';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        CustomTextField(
+                          controller: _licenseNumberController,
+                          labelText: 'Número de licencia de conducir',
+                          hintText: 'Ej: Q12345678',
+                          prefixIcon: Icons.credit_card,
+                          inputFormatters: [
+                            LengthLimitingTextInputFormatter(10),
+                            UpperCaseTextFormatter(),
+                          ],
+                          validator: (value) {
+                            if (!_isDriver) return null;
+                            if (value?.isEmpty ?? true) return 'Ingresa tu número de licencia';
+                            if (value!.length < 8) return 'Número de licencia inválido';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 15),
+                        
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tu vehículo y licencia serán verificados por el administrador antes de poder ofrecer viajes',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    child: CheckboxListTile(
-                      title: const Text(
-                        'Soy conductor y quiero ofrecer viajes',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      subtitle: const Text(
-                        'Podrás crear y publicar rutas para compartir tu vehículo',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      value: _isDriver,
-                      onChanged: (value) => setState(() => _isDriver = value ?? false),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: Colors.blue[800],
-                    ),
+                    crossFadeState: _isDriver 
+                        ? CrossFadeState.showSecond 
+                        : CrossFadeState.showFirst,
+                    duration: const Duration(milliseconds: 300),
                   ),
+                  
                   const SizedBox(height: 30),
                   
                   // Botón de registro
@@ -287,9 +490,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: const Text(
-                            'Registrarse',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          child: Text(
+                            _isDriver ? 'Registrarse como Conductor' : 'Registrarse',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ),
                   const SizedBox(height: 20),
@@ -313,12 +516,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+  
+  Widget _buildSectionTitle(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.blue[800],
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[900],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Formateador para convertir texto a mayúsculas
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }
