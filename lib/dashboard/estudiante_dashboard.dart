@@ -4,7 +4,8 @@ import 'package:movuni/services/session_service.dart';
 import 'package:movuni/login.dart';
 import 'package:movuni/screens/active_trips_screen.dart';
 import 'package:movuni/screens/mis_reservas_screen.dart';
-import 'package:movuni/dashboard/historial_viajes.dart'; // Contiene HistorialEstudiantePage
+import 'package:movuni/screens/register_vehicle_screen.dart';
+import 'package:movuni/dashboard/historial_viajes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../dashboard/conductor_dashboard.dart';
@@ -20,6 +21,8 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
   final SessionService _sessionService = SessionService();
   final User? user = FirebaseAuth.instance.currentUser;
   String? _userName;
+  bool _isDriver = false;
+  String _driverStatus = '';
 
   @override
   void initState() {
@@ -42,6 +45,11 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
             if (_userName!.isEmpty) {
               _userName = userData['email']?.split('@')[0] ?? 'Estudiante';
             }
+            
+            // Cargar información del conductor
+            _isDriver = userData['isDriver'] ?? false;
+            _driverStatus = userData['driverStatus'] ?? '';
+
           });
         }
       } catch (e) {
@@ -53,9 +61,24 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
   }
 
   void _cambiarAConductor(BuildContext context) async {
+    // Si NO es conductor, mostrar diálogo para registrar vehículo
+    if (!_isDriver) {
+      _showRegisterVehicleDialog();
+      return;
+    }
+
+    // Si es conductor, verificar que esté completamente verificado
+    // Debe cumplir: vehicle.verified == true Y driverStatus == 'verified'
+    bool isFullyVerified = _driverStatus == 'verified';
+    
+    if (!isFullyVerified) {
+      _showVehicleNotVerifiedDialog();
+      return;
+    }
+
+    // Si llegó aquí, está completamente verificado - cambiar a conductor
     try {
-      final sessionService = SessionService();
-      
+      await _sessionService.saveUserRole('conductor');
       
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -72,6 +95,159 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
         ),
       );
     }
+  }
+
+  void _showRegisterVehicleDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.directions_car, color: Colors.blue),
+              SizedBox(width: 10),
+              Expanded(child: Text('Registrar como conductor')),
+            ],
+          ),
+          content: const Text(
+            'Para ser conductor necesitas registrar tu vehículo y licencia de conducir. '
+            'Después de registrar tus datos, un administrador verificará tu información '
+            'antes de que puedas ofrecer viajes.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RegisterVehicleScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[800],
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Registrar vehículo'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showVehicleNotVerifiedDialog() {
+    String message = '';
+    String title = '';
+    IconData icon = Icons.pending;
+    Color iconColor = Colors.orange;
+    bool showUpdateButton = false;
+
+    switch (_driverStatus) {
+      case 'pending_verification':
+        title = 'Verificación pendiente';
+        message = 'Tu vehículo está en proceso de verificación por el administrador. '
+                  'Te notificaremos cuando puedas comenzar a ofrecer viajes. '
+                  'Por favor espera la aprobación.';
+        icon = Icons.hourglass_empty;
+        iconColor = Colors.orange;
+        break;
+      case 'rejected':
+        title = 'Verificación rechazada';
+        message = 'Tu solicitud fue rechazada por el administrador. '
+                  'Por favor, actualiza los datos de tu vehículo para una nueva revisión.';
+        icon = Icons.cancel;
+        iconColor = Colors.red;
+        showUpdateButton = true;
+        break;
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(icon, color: iconColor, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontSize: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(message),
+              if (_driverStatus == 'pending_verification') ...[
+                const SizedBox(height: 15),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Mientras tanto, puedes seguir buscando viajes como pasajero',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            if (showUpdateButton)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RegisterVehicleScreen(),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.blue[800],
+                ),
+                child: const Text('Actualizar datos'),
+              ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[800],
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Entendido'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _logout() async {
@@ -178,8 +354,39 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.directions_car, color: Colors.blue),
-                title: const Text('Cambiar a Conductor'),
+                leading: Icon(
+                  Icons.directions_car,
+                  color: _isDriver && _driverStatus == 'verified' 
+                      ? Colors.green 
+                      : Colors.blue,
+                ),
+                title: Row(
+                  children: [
+                    const Text('Cambiar a Conductor'),
+                    if (_isDriver && (_driverStatus != 'verified')) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _driverStatus == 'rejected' ? Colors.red : Colors.orange,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            _driverStatus == 'pending_verification' 
+                                ? 'Pendiente' 
+                                : (_driverStatus == 'rejected' ? 'Rechazado' : 'No verificado'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _cambiarAConductor(context);
@@ -256,6 +463,72 @@ class _EstudianteDashboardState extends State<EstudianteDashboard> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Banner de estado del conductor (si aplica)
+              if (_isDriver && (_driverStatus != 'verified'))
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: _driverStatus == 'rejected' 
+                        ? Colors.red.shade50 
+                        : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _driverStatus == 'rejected' 
+                          ? Colors.red.shade300 
+                          : Colors.orange.shade300,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _driverStatus == 'rejected' ? Icons.cancel : Icons.hourglass_empty,
+                        color: _driverStatus == 'rejected' ? Colors.red : Colors.orange,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _driverStatus == 'rejected' 
+                                  ? 'Solicitud de conductor rechazada' 
+                                  : 'Solicitud de conductor en revisión',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _driverStatus == 'rejected' ? Colors.red.shade900 : Colors.orange.shade900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _driverStatus == 'rejected'
+                                  ? 'Actualiza tus datos para una nueva revisión'
+                                  : 'Pronto podrás ofrecer viajes',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: _driverStatus == 'rejected' ? Colors.red.shade700 : Colors.orange.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_driverStatus == 'rejected')
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.red),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RegisterVehicleScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ),
 
               // Resumen de reservas
               StreamBuilder<QuerySnapshot>(
